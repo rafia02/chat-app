@@ -3,7 +3,7 @@ import { Phone, Video, Search, MoreVertical } from "lucide-react";
 
 export default function ChatHeader() {
   return (
-    <header className="flex h-20 2xl:h-24 items-center justify-between border-b border-[#222C43] bg-[#0F172A]/60 px-8 backdrop-blur-xl">
+    <header className="flex h-[86px] 2xl:h-24 items-center justify-between border-b border-[#222C43] bg-[#111827] px-8 backdrop-blur-xl">
       <div className="flex items-center gap-4">
         <div className="relative">
           <Image

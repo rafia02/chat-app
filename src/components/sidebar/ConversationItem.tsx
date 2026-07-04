@@ -40,7 +40,7 @@ export default function ConversationItem({
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between">
-            <h3 className="truncate text-base font-semibold text-white">
+            <h3 className="truncate text-[15px] 2xl:text-base font-semibold text-white">
               {conversation.name}
             </h3>
 
