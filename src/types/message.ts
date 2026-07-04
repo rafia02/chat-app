@@ -21,4 +21,7 @@ export interface Message {
   status: MessageStatus;
   reactions: MessageReaction[];
   replyTo?: ReplyTo;
+  editedAt?: string;
+  isDeleted?: boolean;
+  tempId?: string;
 }

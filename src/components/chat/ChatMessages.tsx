@@ -1,9 +1,10 @@
 "use client";
 
-import { useMessages } from "@/hooks";
+import { useMessages, useTypingDisplay } from "@/hooks";
 import { LoadingState, ErrorState } from "@/components/ui";
 import DateDivider from "./DateDivider";
 import MessageBubble from "./MessageBubble";
+import TypingIndicator from "./TypingIndicator";
 import { isSameDay } from "@/lib/date";
 import { getUserById } from "@/mocks/users";
 import type { Message } from "@/types";
@@ -21,7 +22,11 @@ export default function ChatMessages({ conversationId }: ChatMessagesProps) {
     currentUserId,
     addReaction,
     setReplyTo,
+    editMessage,
+    deleteMessage,
   } = useMessages(conversationId);
+
+  const typingUserIds = useTypingDisplay(conversationId, currentUserId);
 
   if (isLoading && messages.length === 0) {
     return <LoadingState message="Loading messages..." />;
@@ -48,18 +53,23 @@ export default function ChatMessages({ conversationId }: ChatMessagesProps) {
 
         return (
           <div key={message.id}>
-            {showDateDivider && (
-              <DateDivider date={message.createdAt} />
-            )}
+            {showDateDivider && <DateDivider date={message.createdAt} />}
             <MessageItem
               message={message}
               currentUserId={currentUserId}
               onReact={addReaction}
               onReply={setReplyTo}
+              onEdit={editMessage}
+              onDelete={deleteMessage}
             />
           </div>
         );
       })}
+
+      {typingUserIds.length > 0 && (
+        <TypingIndicator userIds={typingUserIds} />
+      )}
+
       <div ref={bottomRef} />
     </div>
   );
@@ -70,11 +80,15 @@ function MessageItem({
   currentUserId,
   onReact,
   onReply,
+  onEdit,
+  onDelete,
 }: {
   message: Message;
   currentUserId: string;
   onReact: (messageId: string, emoji: string) => void;
   onReply: (reply: import("@/types").ReplyTo) => void;
+  onEdit: (messageId: string, content: string) => void;
+  onDelete: (messageId: string) => void;
 }) {
   const sender = getUserById(message.senderId);
   const isOwn = message.senderId === currentUserId;
@@ -85,6 +99,7 @@ function MessageItem({
       own={isOwn}
       avatar={sender?.avatar}
       sender={sender?.name}
+      currentUserId={currentUserId}
       onReact={(emoji) => onReact(message.id, emoji)}
       onReply={() =>
         onReply({
@@ -95,6 +110,8 @@ function MessageItem({
         })
       }
       onCopy={() => navigator.clipboard.writeText(message.content)}
+      onEdit={(content) => onEdit(message.id, content)}
+      onDelete={() => onDelete(message.id)}
     />
   );
 }

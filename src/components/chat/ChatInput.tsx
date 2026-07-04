@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
 import { Smile, Paperclip, Mic, SendHorizontal, X } from "lucide-react";
-import { useMessages } from "@/hooks";
+import { useMessages, useTypingIndicator } from "@/hooks";
 import { cn } from "@/lib/utils";
 
 interface ChatInputProps {
@@ -14,6 +14,7 @@ export default function ChatInput({ conversationId }: ChatInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const { sendMessage, isSending, replyTo, setReplyTo } =
     useMessages(conversationId);
+  const { handleTyping, stopTyping } = useTypingIndicator(conversationId);
 
   useEffect(() => {
     if (replyTo) inputRef.current?.focus();
@@ -23,7 +24,14 @@ export default function ChatInput({ conversationId }: ChatInputProps) {
     if (!text.trim() || isSending) return;
     const content = text;
     setText("");
+    stopTyping();
     await sendMessage(content);
+  };
+
+  const handleChange = (value: string) => {
+    setText(value);
+    if (value.trim()) handleTyping();
+    else stopTyping();
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -64,8 +72,9 @@ export default function ChatInput({ conversationId }: ChatInputProps) {
         <input
           ref={inputRef}
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => handleChange(e.target.value)}
           onKeyDown={handleKeyDown}
+          onBlur={stopTyping}
           placeholder="Type your message..."
           disabled={isSending}
           className="flex-1 bg-transparent text-sm md:text-base text-white placeholder:text-slate-500 outline-none disabled:opacity-50"

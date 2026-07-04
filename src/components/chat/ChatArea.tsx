@@ -11,11 +11,11 @@ interface ChatAreaProps {
 }
 
 export default function ChatArea({ conversationId }: ChatAreaProps) {
-  const activeConversation = useChatStore((s) =>
-    conversationId
-      ? s.conversations.find((c) => c.id === conversationId) ?? null
-      : s.getActiveConversation()
-  );
+  const activeConversation = useChatStore((s) => {
+    const id = conversationId ?? s.activeConversationId;
+    if (!id) return null;
+    return s.conversations.find((c) => c.id === id) ?? null;
+  });
 
   const hasConversation = !!conversationId && !!activeConversation;
 

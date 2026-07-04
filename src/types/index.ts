@@ -17,3 +17,24 @@ export type {
   PaginatedResponse,
   ServiceResult,
 } from "./api";
+export type {
+  CallType,
+  CallStatus,
+  CallSession,
+  SocketAuthPayload,
+  MessageSendPayload,
+  MessageEditPayload,
+  MessageDeletePayload,
+  MessageReactPayload,
+  MessageReadPayload,
+  TypingPayload,
+  CallInitiatePayload,
+  CallSignalPayload,
+  MessageStatusPayload,
+  PresencePayload,
+  TypingUpdatePayload,
+  NotificationPayload,
+  SocketConnectionStatus,
+  ConversationUpdatedPayload,
+} from "./socket";
+export { CLIENT_EVENTS, SERVER_EVENTS } from "./socket";

@@ -5,41 +5,51 @@ import { useRouter, useParams } from "next/navigation";
 import { useChatStore } from "@/stores";
 
 export function useConversations() {
-  const store = useChatStore();
+  const conversations = useChatStore((s) => s.conversations);
+  const isLoading = useChatStore((s) => s.isLoadingConversations);
+  const error = useChatStore((s) => s.error);
+  const searchQuery = useChatStore((s) => s.searchQuery);
+  const activeTab = useChatStore((s) => s.activeTab);
+  const activeConversationId = useChatStore((s) => s.activeConversationId);
+  const fetchConversations = useChatStore((s) => s.fetchConversations);
+  const setSearchQuery = useChatStore((s) => s.setSearchQuery);
+  const setActiveTab = useChatStore((s) => s.setActiveTab);
+  const setActiveConversation = useChatStore((s) => s.setActiveConversation);
+
   const router = useRouter();
   const params = useParams();
   const conversationIdFromUrl = params?.conversationId as string | undefined;
 
   useEffect(() => {
-    if (store.conversations.length === 0 && !store.isLoadingConversations) {
-      store.fetchConversations();
+    if (conversations.length === 0 && !isLoading) {
+      fetchConversations();
     }
-  }, [store.conversations.length, store.isLoadingConversations, store.fetchConversations]);
+  }, [conversations.length, isLoading, fetchConversations]);
 
   useEffect(() => {
-    if (conversationIdFromUrl && conversationIdFromUrl !== store.activeConversationId) {
-      store.setActiveConversation(conversationIdFromUrl);
+    if (conversationIdFromUrl && conversationIdFromUrl !== activeConversationId) {
+      setActiveConversation(conversationIdFromUrl);
     }
-  }, [conversationIdFromUrl, store.activeConversationId, store.setActiveConversation]);
+  }, [conversationIdFromUrl, activeConversationId, setActiveConversation]);
 
   const selectConversation = useCallback(
     (id: string) => {
-      store.setActiveConversation(id);
+      setActiveConversation(id);
       router.push(`/chat/${id}`);
     },
-    [store, router]
+    [setActiveConversation, router]
   );
 
   return {
-    conversations: store.conversations,
-    isLoading: store.isLoadingConversations,
-    error: store.error,
-    searchQuery: store.searchQuery,
-    activeTab: store.activeTab,
-    activeConversationId: store.activeConversationId ?? conversationIdFromUrl ?? null,
-    setSearchQuery: store.setSearchQuery,
-    setActiveTab: store.setActiveTab,
+    conversations,
+    isLoading,
+    error,
+    searchQuery,
+    activeTab,
+    activeConversationId: activeConversationId ?? conversationIdFromUrl ?? null,
+    setSearchQuery,
+    setActiveTab,
     selectConversation,
-    refresh: store.fetchConversations,
+    refresh: fetchConversations,
   };
 }

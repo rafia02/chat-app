@@ -3,7 +3,9 @@
 import Image from "next/image";
 import { Phone, Video, Search, MoreVertical, ArrowLeft } from "lucide-react";
 import type { Conversation } from "@/types";
-import { useResponsiveLayout } from "@/hooks";
+import { useResponsiveLayout, useCall, useTypingDisplay } from "@/hooks";
+import { useAuthStore } from "@/stores";
+import { getUserById } from "@/mocks/users";
 
 interface ChatHeaderProps {
   conversation: Conversation;
@@ -11,14 +13,45 @@ interface ChatHeaderProps {
 
 export default function ChatHeader({ conversation }: ChatHeaderProps) {
   const { isMobile, openSidebar } = useResponsiveLayout();
+  const { startCall } = useCall();
+  const currentUserId = useAuthStore((s) => s.user?.id ?? "");
+  const typingUserIds = useTypingDisplay(conversation.id, currentUserId);
 
-  const statusText = conversation.isOnline
-    ? "Online"
-    : conversation.type === "group"
-      ? `${conversation.participantIds.length} members`
-      : "Offline";
+  const otherParticipantId = conversation.participantIds.find(
+    (id) => id !== currentUserId
+  );
 
-  const statusColor = conversation.isOnline ? "text-green-400" : "text-slate-400";
+  const typingNames = typingUserIds
+    .map((id) => getUserById(id)?.name?.split(" ")[0])
+    .filter(Boolean);
+
+  const statusText = typingNames.length > 0
+    ? typingNames.length === 1
+      ? `${typingNames[0]} is typing...`
+      : "Several people are typing..."
+    : conversation.isOnline
+      ? "Online"
+      : conversation.type === "group"
+        ? `${conversation.participantIds.length} members`
+        : "Offline";
+
+  const statusColor = typingNames.length > 0
+    ? "text-indigo-400"
+    : conversation.isOnline
+      ? "text-green-400"
+      : "text-slate-400";
+
+  const handleVoiceCall = () => {
+    if (otherParticipantId) {
+      startCall(conversation.id, otherParticipantId, "voice");
+    }
+  };
+
+  const handleVideoCall = () => {
+    if (otherParticipantId) {
+      startCall(conversation.id, otherParticipantId, "video");
+    }
+  };
 
   return (
     <header className="flex h-[72px] md:h-[86px] 2xl:h-24 items-center justify-between border-b border-[#222C43] bg-[#111827] px-4 md:px-8 backdrop-blur-xl shrink-0">
@@ -50,12 +83,28 @@ export default function ChatHeader({ conversation }: ChatHeaderProps) {
           <h2 className="truncate text-base md:text-lg 2xl:text-xl font-semibold text-white">
             {conversation.name}
           </h2>
-          <p className={`text-xs 2xl:text-sm ${statusColor}`}>{statusText}</p>
+          <p className={`text-xs 2xl:text-sm truncate transition-colors ${statusColor}`}>
+            {statusText}
+          </p>
         </div>
       </div>
 
       <div className="flex items-center gap-2 md:gap-3 shrink-0">
-        {[Phone, Video, Search, MoreVertical].map((Icon, index) => (
+        <button
+          onClick={handleVoiceCall}
+          className="flex h-9 w-9 md:h-10 md:w-10 2xl:h-12 2xl:w-12 items-center justify-center rounded-xl border border-[#222C43] bg-[#111827] text-slate-300 transition-all duration-300 hover:border-indigo-500 hover:bg-indigo-600 hover:text-white"
+          aria-label="Voice call"
+        >
+          <Phone size={18} />
+        </button>
+        <button
+          onClick={handleVideoCall}
+          className="flex h-9 w-9 md:h-10 md:w-10 2xl:h-12 2xl:w-12 items-center justify-center rounded-xl border border-[#222C43] bg-[#111827] text-slate-300 transition-all duration-300 hover:border-indigo-500 hover:bg-indigo-600 hover:text-white"
+          aria-label="Video call"
+        >
+          <Video size={18} />
+        </button>
+        {[Search, MoreVertical].map((Icon, index) => (
           <button
             key={index}
             className="flex h-9 w-9 md:h-10 md:w-10 2xl:h-12 2xl:w-12 items-center justify-center rounded-xl border border-[#222C43] bg-[#111827] text-slate-300 transition-all duration-300 hover:border-indigo-500 hover:bg-indigo-600 hover:text-white"

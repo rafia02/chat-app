@@ -1,46 +1,121 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useState, useRef, useCallback, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
-import { motion } from "framer-motion";
-import { Check, CheckCheck } from "lucide-react";
+import { Check, CheckCheck, X } from "lucide-react";
 import type { Message } from "@/types";
 import { formatMessageTime } from "@/lib/date";
-import MessageToolbar from "./MessageToolbar";
+import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks";
+import { useLongPress } from "@/hooks/useLongPress";
+import ReactionPicker from "./ReactionPicker";
+import MessageContextMenu from "./MessageContextMenu";
 import ReplyPreview from "./ReplyPreview";
-import ReactionBar from "./ReactionBar";
 
 interface MessageBubbleProps {
   message: Message;
   own?: boolean;
   avatar?: string;
   sender?: string;
+  currentUserId?: string;
   onReact?: (emoji: string) => void;
   onReply?: () => void;
   onCopy?: () => void;
+  onEdit?: (content: string) => void;
+  onDelete?: () => void;
 }
 
-export default function MessageBubble({
+function MessageBubble({
   message,
   own = false,
   avatar,
   sender,
+  currentUserId,
   onReact,
   onReply,
   onCopy,
+  onEdit,
+  onDelete,
 }: MessageBubbleProps) {
-  const [showToolbar, setShowToolbar] = useState(false);
+  const [showActions, setShowActions] = useState(false);
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState(message.content);
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
 
-  const reactions = message.reactions.map((r) => r.emoji);
-  const uniqueReactions = [...new Set(reactions)];
+  const closeAll = useCallback(() => {
+    setShowActions(false);
+    setShowReactionPicker(false);
+  }, []);
+
+  const handleMouseEnter = () => {
+    if (isMobile || message.isDeleted) return;
+    hoverTimeoutRef.current = setTimeout(() => setShowActions(true), 200);
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    if (!showReactionPicker) setShowActions(false);
+  };
+
+  const longPressHandlers = useLongPress({
+    onLongPress: () => {
+      if (!message.isDeleted) {
+        setShowActions(true);
+        setShowReactionPicker(true);
+      }
+    },
+  });
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        closeAll();
+      }
+    };
+    if (showActions || showReactionPicker) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showActions, showReactionPicker, closeAll]);
 
   const handleCopy = () => {
     onCopy?.();
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-    setShowToolbar(false);
+    closeAll();
   };
+
+  const handleReact = (emoji: string) => {
+    onReact?.(emoji);
+    closeAll();
+  };
+
+  const handleEditSave = () => {
+    if (editText.trim() && editText !== message.content) {
+      onEdit?.(editText.trim());
+    }
+    setIsEditing(false);
+    closeAll();
+  };
+
+  const handleEditCancel = () => {
+    setEditText(message.content);
+    setIsEditing(false);
+  };
+
+  const reactionGroups = message.reactions.reduce<
+    Record<string, { count: number; userIds: string[] }>
+  >((acc, r) => {
+    if (!acc[r.emoji]) acc[r.emoji] = { count: 0, userIds: [] };
+    acc[r.emoji].count++;
+    acc[r.emoji].userIds.push(r.userId);
+    return acc;
+  }, {});
 
   const statusLabel =
     message.status === "seen"
@@ -55,15 +130,30 @@ export default function MessageBubble({
 
   const isSeen = message.status === "seen";
 
+  if (message.isDeleted) {
+    return (
+      <div className={`mb-5 md:mb-7 flex ${own ? "justify-end" : "justify-start"}`}>
+        <div className="max-w-[85%] md:max-w-[68%] rounded-2xl border border-dashed border-[#26314A] bg-[#0f1520]/50 px-5 py-3">
+          <p className="text-sm italic text-slate-500">This message was deleted</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <motion.div
+      ref={containerRef}
       layout
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25 }}
-      onMouseEnter={() => setShowToolbar(true)}
-      onMouseLeave={() => setShowToolbar(false)}
-      className={`group mb-5 md:mb-7 flex ${own ? "justify-end" : "justify-start"}`}
+      transition={{ duration: 0.2, ease: "easeOut" }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      {...(isMobile ? longPressHandlers : {})}
+      className={cn(
+        "group relative mb-5 md:mb-7 flex",
+        own ? "justify-end" : "justify-start"
+      )}
     >
       {!own && avatar && (
         <Image
@@ -71,26 +161,26 @@ export default function MessageBubble({
           alt={sender || "avatar"}
           width={42}
           height={42}
-          className="mr-2 md:mr-3 mt-auto rounded-full w-8 h-8 md:w-10 md:h-10 ring-2 ring-transparent transition group-hover:ring-indigo-500/30 object-cover"
+          className="mr-2 md:mr-3 mt-auto rounded-full w-8 h-8 md:w-10 md:h-10 object-cover ring-2 ring-transparent transition-all duration-300 group-hover:ring-indigo-500/20"
         />
       )}
 
       <div className="relative max-w-[85%] md:max-w-[68%]">
-        <MessageToolbar
-          visible={showToolbar}
+        <ReactionPicker
+          visible={showReactionPicker || (showActions && !isMobile)}
           own={own}
-          onReply={onReply}
-          onCopy={handleCopy}
-          copied={copied}
+          onReact={handleReact}
         />
 
-        <ReactionBar
-          visible={showToolbar}
+        <MessageContextMenu
+          visible={showActions && !showReactionPicker}
           own={own}
-          onReact={(emoji) => {
-            onReact?.(emoji);
-            setShowToolbar(false);
-          }}
+          copied={copied}
+          onReact={() => setShowReactionPicker(true)}
+          onReply={() => { onReply?.(); closeAll(); }}
+          onCopy={handleCopy}
+          onEdit={own ? () => { setIsEditing(true); closeAll(); } : undefined}
+          onDelete={own ? () => { onDelete?.(); closeAll(); } : undefined}
         />
 
         {message.replyTo && (
@@ -101,62 +191,109 @@ export default function MessageBubble({
         )}
 
         <motion.div
-          whileHover={{ y: -2 }}
-          transition={{ duration: 0.18 }}
-          className={`relative overflow-hidden rounded-[20px] md:rounded-[26px] px-4 md:px-6 py-3 md:py-4 shadow-xl transition-all duration-300 ${
+          whileHover={!isMobile ? { y: -1 } : undefined}
+          transition={{ duration: 0.15 }}
+          className={cn(
+            "relative overflow-hidden rounded-[20px] md:rounded-[22px] px-4 md:px-5 py-3 md:py-3.5 shadow-lg transition-all duration-200",
             own
-              ? "rounded-br-md bg-gradient-to-br from-indigo-600 via-indigo-500 to-violet-600 text-white shadow-[0_20px_45px_rgba(79,70,229,.35)]"
-              : "rounded-bl-md border border-[#26314A] bg-[#141D2F] text-white hover:border-indigo-500/30"
-          }`}
+              ? "rounded-br-sm bg-gradient-to-br from-indigo-600 via-indigo-500 to-violet-600 text-white shadow-indigo-500/20"
+              : "rounded-bl-sm border border-[#26314A]/80 bg-[#141D2F] text-white hover:border-indigo-500/20",
+            (showActions || showReactionPicker) && "ring-1 ring-white/10"
+          )}
         >
           {!own && sender && (
-            <p className="mb-1 md:mb-2 text-xs md:text-sm font-semibold text-cyan-400">
+            <p className="mb-1 text-xs md:text-sm font-semibold text-cyan-400/90">
               {sender}
             </p>
           )}
 
-          <p className="whitespace-pre-wrap break-words text-sm md:text-[15px] leading-relaxed md:leading-7">
-            {message.content}
-          </p>
+          {isEditing ? (
+            <div className="space-y-2">
+              <textarea
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                className="w-full resize-none bg-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:ring-1 focus:ring-white/30"
+                rows={2}
+                autoFocus
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={handleEditCancel}
+                  className="rounded-lg px-3 py-1 text-xs text-white/70 hover:bg-white/10"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleEditSave}
+                  className="rounded-lg bg-white/20 px-3 py-1 text-xs font-medium text-white hover:bg-white/30"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="whitespace-pre-wrap break-words text-sm md:text-[15px] leading-relaxed">
+              {message.content}
+            </p>
+          )}
+
+          {message.editedAt && !isEditing && (
+            <span className="mt-1 block text-[10px] text-white/40">edited</span>
+          )}
         </motion.div>
 
-        {uniqueReactions.length > 0 && (
-          <div className="mt-2 md:mt-3 flex flex-wrap gap-1.5 md:gap-2">
-            {uniqueReactions.map((emoji, index) => (
-              <motion.button
-                key={index}
-                layout
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                whileHover={{ scale: 1.08 }}
-                className="rounded-full border border-[#26314A] bg-[#101827] px-2.5 md:px-3 py-0.5 md:py-1 text-sm shadow-lg"
-              >
-                {emoji}
-                {reactions.filter((r) => r === emoji).length > 1 && (
-                  <span className="ml-1 text-xs text-slate-400">
-                    {reactions.filter((r) => r === emoji).length}
-                  </span>
-                )}
-              </motion.button>
-            ))}
-          </div>
-        )}
+        <AnimatePresence>
+          {Object.keys(reactionGroups).length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={cn(
+                "absolute -bottom-3 flex flex-wrap gap-1",
+                own ? "right-2" : "left-2"
+              )}
+            >
+              {Object.entries(reactionGroups).map(([emoji, { count, userIds }]) => {
+                const hasOwn = currentUserId && userIds.includes(currentUserId);
+                return (
+                  <motion.button
+                    key={emoji}
+                    whileHover={{ scale: 1.08 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => onReact?.(emoji)}
+                    className={cn(
+                      "flex items-center gap-1 rounded-full border px-2 py-0.5 text-sm shadow-md backdrop-blur-sm transition-colors",
+                      hasOwn
+                        ? "border-indigo-500/50 bg-indigo-500/20"
+                        : "border-[#26314A] bg-[#101827]/90 hover:bg-[#1a2540]"
+                    )}
+                  >
+                    <span>{emoji}</span>
+                    {count > 1 && (
+                      <span className="text-[10px] text-slate-400">{count}</span>
+                    )}
+                  </motion.button>
+                );
+              })}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div
-          className={`mt-1.5 md:mt-2 flex items-center gap-1.5 md:gap-2 text-[10px] md:text-xs text-slate-500 ${
-            own ? "justify-end" : "justify-start"
-          }`}
+          className={cn(
+            "mt-2 md:mt-3 flex items-center gap-1.5 text-[10px] md:text-xs text-slate-500",
+            own ? "justify-end" : "justify-start",
+            Object.keys(reactionGroups).length > 0 && "mt-4"
+          )}
         >
           <span>{formatMessageTime(message.createdAt)}</span>
-
           {own && (
             <>
               {message.status === "sending" ? (
-                <Check size={12} className="text-slate-500" />
+                <Check size={12} className="text-slate-500 animate-pulse" />
               ) : (
                 <CheckCheck
                   size={12}
-                  className={isSeen ? "text-sky-400" : "text-slate-500"}
+                  className={cn("transition-colors", isSeen ? "text-sky-400" : "text-slate-500")}
                 />
               )}
               <span className={isSeen ? "text-sky-400" : "text-slate-500"}>
@@ -169,3 +306,5 @@ export default function MessageBubble({
     </motion.div>
   );
 }
+
+export default memo(MessageBubble);
