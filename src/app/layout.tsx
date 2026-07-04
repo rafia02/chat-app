@@ -45,6 +45,8 @@ export const metadata: Metadata = {
   description: "Realtime Chat Application",
 };
 
+import { AppProviders } from "@/providers/AppProviders";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -52,7 +54,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={geist.className}>{children}</body>
+      <body className={`${geist.className} h-full antialiased`}>
+        <AppProviders>{children}</AppProviders>
+      </body>
     </html>
   );
 }

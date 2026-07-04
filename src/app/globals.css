@@ -1,18 +1,19 @@
 @import "tailwindcss";
 
 * {
-  /* margin: 0;
-  padding: 0; */
   box-sizing: border-box;
 }
 
 html {
   scroll-behavior: smooth;
+  height: 100%;
 }
 
 body {
   background: #0b1120;
   color: white;
+  height: 100%;
+  overflow: hidden;
 }
 
 button {
@@ -28,7 +29,8 @@ a {
 }
 
 ::-webkit-scrollbar {
-  width: 7px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-thumb {
@@ -38,4 +40,19 @@ a {
 
 ::-webkit-scrollbar-track {
   background: transparent;
+}
+
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  body {
+    overflow: auto;
+  }
 }
