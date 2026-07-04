@@ -1,5 +1,6 @@
 import ChatHeader from "./ChatHeader";
 import ChatInput from "./ChatInput";
+import ChatMessages from "./ChatMessages";
 import EmptyChat from "./EmptyChat";
 
 export default function ChatArea() {
@@ -8,7 +9,8 @@ export default function ChatArea() {
       <ChatHeader />
 
       <div className="flex-1 overflow-hidden">
-        <EmptyChat />
+        {/* <EmptyChat /> */}
+        <ChatMessages />
       </div>
 
       <ChatInput />
