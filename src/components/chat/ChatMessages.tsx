@@ -45,7 +45,7 @@ export default function ChatMessages({ conversationId }: ChatMessagesProps) {
   }
 
   return (
-    <div className="h-full overflow-y-auto px-4 md:px-8 lg:px-12 py-6 md:py-10 bg-[radial-gradient(circle_at_top,#1B2550_0%,#0B1120_45%,#0B1120_100%)]">
+    <div className="h-full overflow-y-auto px-4 2xl:px-8 py-6 md:py-10 bg-[radial-gradient(circle_at_top,#1B2550_0%,#0B1120_45%,#0B1120_100%)]">
       {messages.map((message, index) => {
         const showDateDivider =
           index === 0 ||
@@ -66,9 +66,7 @@ export default function ChatMessages({ conversationId }: ChatMessagesProps) {
         );
       })}
 
-      {typingUserIds.length > 0 && (
-        <TypingIndicator userIds={typingUserIds} />
-      )}
+      {typingUserIds.length > 0 && <TypingIndicator userIds={typingUserIds} />}
 
       <div ref={bottomRef} />
     </div>

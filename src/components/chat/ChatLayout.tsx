@@ -18,7 +18,7 @@ export default function ChatLayout({ conversationId }: ChatLayoutProps) {
 
   return (
     <AuthGuard>
-      <main className="h-screen bg-[#070B14] p-0 md:p-2 lg:p-3">
+      <main className="h-screen bg-[#070B14]">
         <NotificationToast />
         <CallOverlay />
         <IncomingCallModal />
@@ -27,11 +27,7 @@ export default function ChatLayout({ conversationId }: ChatLayoutProps) {
           <div
             className={cn(
               "h-full shrink-0 transition-all duration-300",
-              isMobile
-                ? showChatOnMobile
-                  ? "hidden"
-                  : "w-full"
-                : "w-auto"
+              isMobile ? (showChatOnMobile ? "hidden" : "w-full") : "w-auto",
             )}
           >
             <Sidebar />
@@ -40,7 +36,7 @@ export default function ChatLayout({ conversationId }: ChatLayoutProps) {
           <div
             className={cn(
               "flex flex-1 flex-col min-w-0",
-              isMobile && !showChatOnMobile && "hidden"
+              isMobile && !showChatOnMobile && "hidden",
             )}
           >
             <ChatArea conversationId={conversationId} />

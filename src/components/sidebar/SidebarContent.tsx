@@ -11,11 +11,11 @@ export default function SidebarContent() {
       <SidebarHeader />
       <SocketStatus />
 
-      <div className="px-4 2xl:px-5 pt-0 2xl:pt-6">
+      <div className="px-3 md:px-4 2xl:px-5 pt-0 2xl:pt-6">
         <SidebarSearch />
       </div>
 
-      <div className="px-4 2xl:px-5 pt-4 2xl:pt-6">
+      <div className="px-3 md:px-4 2xl:px-5 pt-4 2xl:pt-6">
         <SidebarTabs />
       </div>
 

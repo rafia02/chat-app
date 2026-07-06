@@ -18,28 +18,30 @@ export default function ChatHeader({ conversation }: ChatHeaderProps) {
   const typingUserIds = useTypingDisplay(conversation.id, currentUserId);
 
   const otherParticipantId = conversation.participantIds.find(
-    (id) => id !== currentUserId
+    (id) => id !== currentUserId,
   );
 
   const typingNames = typingUserIds
     .map((id) => getUserById(id)?.name?.split(" ")[0])
     .filter(Boolean);
 
-  const statusText = typingNames.length > 0
-    ? typingNames.length === 1
-      ? `${typingNames[0]} is typing...`
-      : "Several people are typing..."
-    : conversation.isOnline
-      ? "Online"
-      : conversation.type === "group"
-        ? `${conversation.participantIds.length} members`
-        : "Offline";
+  const statusText =
+    typingNames.length > 0
+      ? typingNames.length === 1
+        ? `${typingNames[0]} is typing...`
+        : "Several people are typing..."
+      : conversation.isOnline
+        ? "Online"
+        : conversation.type === "group"
+          ? `${conversation.participantIds.length} members`
+          : "Offline";
 
-  const statusColor = typingNames.length > 0
-    ? "text-indigo-400"
-    : conversation.isOnline
-      ? "text-green-400"
-      : "text-slate-400";
+  const statusColor =
+    typingNames.length > 0
+      ? "text-indigo-400"
+      : conversation.isOnline
+        ? "text-green-400"
+        : "text-slate-400";
 
   const handleVoiceCall = () => {
     if (otherParticipantId) {
@@ -54,7 +56,7 @@ export default function ChatHeader({ conversation }: ChatHeaderProps) {
   };
 
   return (
-    <header className="flex h-[72px] md:h-[86px] 2xl:h-24 items-center justify-between border-b border-[#222C43] bg-[#111827] px-4 md:px-8 backdrop-blur-xl shrink-0">
+    <header className="flex h-[72px] md:h-[86px] 2xl:h-24 items-center justify-between border-b border-[#222C43] bg-[#111827] px-4 2xl:px-8 backdrop-blur-xl shrink-0">
       <div className="flex items-center gap-3 md:gap-4 min-w-0">
         {isMobile && (
           <button
@@ -83,7 +85,9 @@ export default function ChatHeader({ conversation }: ChatHeaderProps) {
           <h2 className="truncate text-base md:text-lg 2xl:text-xl font-semibold text-white">
             {conversation.name}
           </h2>
-          <p className={`text-xs 2xl:text-sm truncate transition-colors ${statusColor}`}>
+          <p
+            className={`text-xs 2xl:text-sm truncate transition-colors ${statusColor}`}
+          >
             {statusText}
           </p>
         </div>

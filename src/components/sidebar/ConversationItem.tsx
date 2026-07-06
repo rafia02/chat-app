@@ -61,7 +61,7 @@ export default function ConversationItem({
             </span>
           </div>
 
-          <div className="mt-0.5 2xl:mt-2 flex items-center justify-between gap-2">
+          <div className="mt-1 2xl:mt-2 flex items-center justify-between gap-2">
             <p className="truncate text-xs md:text-sm text-slate-400">
               {conversation.lastMessage}
             </p>

@@ -42,7 +42,7 @@ export default function ChatInput({ conversationId }: ChatInputProps) {
   };
 
   return (
-    <div className="border-t border-[#222C43] p-2.5 mx-2 md:mx-4 shrink-0">
+    <div className="border border-[#222C43] p-3 2xl:p-4 mx-2 md:mx-4 shrink-0 rounded-2xl">
       {replyTo && (
         <div className="mb-2 flex items-center justify-between rounded-xl border border-[#222C43] bg-[#111827] px-4 py-2">
           <div className="min-w-0">
@@ -104,7 +104,7 @@ export default function ChatInput({ conversationId }: ChatInputProps) {
             "flex h-9 w-9 md:h-10 md:w-10 2xl:h-12 2xl:w-12 items-center justify-center rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 transition",
             text.trim() && !isSending
               ? "hover:scale-105"
-              : "opacity-50 cursor-not-allowed"
+              : "opacity-50 cursor-not-allowed",
           )}
           aria-label="Send message"
         >

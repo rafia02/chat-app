@@ -12,7 +12,7 @@ export default function Sidebar() {
     <aside
       className={cn(
         "flex h-full border-r border-[#1B2233] bg-[#0D1322]",
-        isMobile ? "w-full" : "w-[320px] lg:w-[380px] xl:w-[430px]"
+        isMobile ? "w-full" : "w-[320px] lg:w-[450px] xl:w-[500px]",
       )}
     >
       {!isMobile && <LeftRail />}

@@ -2,11 +2,11 @@
 
 import { MessageCircle, Users, Bell, Bookmark, CircleHelp } from "lucide-react";
 
-const menus = [MessageCircle, Users, Bookmark, Bell];
+const menus = [Users, Bookmark, Bell];
 
 export default function LeftRail() {
   return (
-    <div className="flex w-20 flex-col items-center justify-between border-r border-[#1B2233] bg-[#0A0F1C] py-6">
+    <div className="flex flex-col items-center justify-between border-r border-[#1B2233] bg-[#0A0F1C] py-6 px-2 2xl:px-4">
       <div className="space-y-5">
         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600">
           <MessageCircle className="text-white" />
