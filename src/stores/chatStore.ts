@@ -239,7 +239,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
                       ...result.data,
                       ...(state.messages[conversationId] ?? []).filter(
                         (message) =>
-                          !result.data.some((fetched) => fetched.id === message.id),
+                          !result.data.some(
+                            (fetched) => fetched.id === message.id,
+                          ),
                       ),
                     ].map((message) => [message.id, message]),
                   ).values(),

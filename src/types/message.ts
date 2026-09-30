@@ -1,4 +1,9 @@
-export type MessageStatus = "sending" | "sent" | "delivered" | "seen" | "failed";
+export type MessageStatus =
+  | "sending"
+  | "sent"
+  | "delivered"
+  | "seen"
+  | "failed";
 
 export type MessageMediaType = "image" | "video" | "audio" | "file";
 

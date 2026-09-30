@@ -336,9 +336,9 @@ function MessageBubble({
               {message.content &&
                 message.content !== "📎 Media" &&
                 !contentIsAttachmentName && (
-                <p className="whitespace-pre-wrap break-words text-sm md:text-[15px] leading-relaxed">
-                  {message.content}
-                </p>
+                  <p className="whitespace-pre-wrap break-words text-sm md:text-[15px] leading-relaxed">
+                    {message.content}
+                  </p>
                 )}
             </div>
           )}
