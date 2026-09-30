@@ -37,9 +37,12 @@ export default function ChatInput({ conversationId }: ChatInputProps) {
     if (replyTo) inputRef.current?.focus();
   }, [replyTo]);
 
-  useEffect(() => () => {
-    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    },
+    [],
+  );
 
   const clearSelectedFile = () => {
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
@@ -91,8 +94,8 @@ export default function ChatInput({ conversationId }: ChatInputProps) {
   };
 
   const extension = selectedFile?.name.includes(".")
-    ? selectedFile.name.split(".").pop()?.toUpperCase() ?? "FILE"
-    : selectedFile?.type.split("/").pop()?.toUpperCase() ?? "FILE";
+    ? (selectedFile.name.split(".").pop()?.toUpperCase() ?? "FILE")
+    : (selectedFile?.type.split("/").pop()?.toUpperCase() ?? "FILE");
   const PreviewIcon = selectedFile?.type.startsWith("video/")
     ? FileVideo
     : selectedFile?.type.startsWith("audio/")
