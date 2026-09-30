@@ -121,20 +121,70 @@ function mapReplyTo(raw: unknown): ReplyTo | undefined {
   };
 }
 
-function mapMedia(raw: unknown): MessageMedia | undefined {
-  if (!raw || typeof raw !== "object") return undefined;
-  const data = raw as Record<string, unknown>;
-  if (!data.url) return undefined;
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : {};
+}
 
-  const type = data.type;
-  const mediaType =
-    type === "image" || type === "video" || type === "audio" || type === "file"
-      ? type
-      : "file";
+function filenameFromUrl(url: string): string | undefined {
+  try {
+    const path = new URL(url, "https://attachment.local").pathname;
+    const filename = decodeURIComponent(path.split("/").pop() ?? "");
+    return filename || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function mapMedia(raw: unknown, content: string): MessageMedia | undefined {
+  const message = asRecord(raw);
+  const nestedValue =
+    message.media ?? message.attachment ?? message.file ?? message.image;
+  const nested = asRecord(nestedValue);
+  const urlValue =
+    (typeof nestedValue === "string" ? nestedValue : undefined) ??
+    nested.url ??
+    nested.secure_url ??
+    nested.path ??
+    nested.fileUrl ??
+    nested.src ??
+    message.mediaUrl ??
+    message.fileUrl ??
+    message.attachmentUrl ??
+    message.filePath;
+  if (typeof urlValue !== "string" || !urlValue.trim()) return undefined;
+
+  const url = urlValue.trim();
+  const rawType = String(
+    nested.type ?? nested.mediaType ?? nested.mimeType ?? nested.mimetype ?? "",
+  ).toLowerCase();
+  const type: MessageMedia["type"] =
+    rawType === "image" || rawType.startsWith("image/")
+      ? "image"
+      : rawType === "video" || rawType.startsWith("video/")
+        ? "video"
+        : rawType === "audio" || rawType.startsWith("audio/")
+          ? "audio"
+          : "file";
+  const rawName =
+    nested.name ??
+    nested.fileName ??
+    nested.filename ??
+    nested.originalName ??
+    nested.originalname ??
+    message.fileName ??
+    message.filename;
+  const contentIsFilename =
+    content !== "📎 Media" && /^[^\\/]+\.[a-z0-9]{1,10}$/i.test(content.trim());
 
   return {
-    url: String(data.url),
-    type: mediaType,
+    url,
+    type,
+    name:
+      (typeof rawName === "string" && rawName.trim()) ||
+      (contentIsFilename ? content.trim() : undefined) ||
+      filenameFromUrl(url),
   };
 }
 
@@ -175,7 +225,7 @@ export function mapMessage(raw: unknown): Message {
     editedAt: data.editedAt ? asIso(data.editedAt) : undefined,
     isDeleted: Boolean(data.isDeleted),
     tempId: data.tempId ? String(data.tempId) : undefined,
-    media: mapMedia(data.media),
+    media: mapMedia(data, String(data.content ?? "")),
   };
 }
 

@@ -44,7 +44,7 @@ export function useMessages(conversationId: string | null) {
 
   const handleSend = useCallback(
     async (content: string, file?: File) => {
-      await sendMessage(content, file);
+      return sendMessage(content, file);
     },
     [sendMessage]
   );

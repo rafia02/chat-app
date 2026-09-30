@@ -10,7 +10,7 @@ import {
   useUsersStore,
   useSocialStore,
 } from "@/stores";
-import { socketClient, registerSocketListeners } from "@/services/socket";
+import { socketClient, socketEmitter, registerSocketListeners } from "@/services/socket";
 import { getAuthSession } from "@/lib/storage";
 import { avatarUrl } from "@/lib/mappers";
 import { handleCallSignal, handleRemoteCallEnded } from "@/hooks/useCall";
@@ -21,6 +21,7 @@ export function useSocket() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const user = useAuthStore((s) => s.user);
   const setStatus = useSocketStore((s) => s.setStatus);
+  const status = useSocketStore((s) => s.status);
 
   useEffect(() => {
     return socketClient.onStatusChange(setStatus);
@@ -40,8 +41,14 @@ export function useSocket() {
     return () => socketClient.disconnect();
   }, [isAuthenticated, user?.id]);
 
+  useEffect(() => {
+    if (status !== "connected") return;
+    const conversationId = useChatStore.getState().activeConversationId;
+    if (conversationId) socketEmitter.joinConversation(conversationId);
+  }, [status]);
+
   return {
-    status: useSocketStore((s) => s.status),
+    status,
     isConnected: socketClient.isConnected(),
   };
 }

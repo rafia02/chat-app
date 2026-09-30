@@ -35,7 +35,7 @@ interface ChatState {
   ) => Promise<Conversation | null>;
   fetchMessages: (conversationId: string, page?: number) => Promise<void>;
   setActiveConversation: (id: string | null) => void;
-  sendMessage: (content: string, file?: File) => Promise<void>;
+  sendMessage: (content: string, file?: File) => Promise<boolean>;
   editMessage: (messageId: string, content: string) => Promise<void>;
   deleteMessage: (messageId: string) => Promise<void>;
   markAsRead: (conversationId: string) => Promise<void>;
@@ -233,7 +233,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
           [conversationId]:
             page > 1
               ? [...result.data, ...(state.messages[conversationId] ?? [])]
-              : result.data,
+              : Array.from(
+                  new Map(
+                    [
+                      ...result.data,
+                      ...(state.messages[conversationId] ?? []).filter(
+                        (message) =>
+                          !result.data.some((fetched) => fetched.id === message.id),
+                      ),
+                    ].map((message) => [message.id, message]),
+                  ).values(),
+                ).sort(
+                  (first, second) =>
+                    new Date(first.createdAt).getTime() -
+                    new Date(second.createdAt).getTime(),
+                ),
         },
         isLoadingMessages: false,
       }));
@@ -264,17 +278,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   sendMessage: async (content, file) => {
     const { activeConversationId, replyTo } = get();
-    if (!activeConversationId) return;
-    if (!content.trim() && !file) return;
+    if (!activeConversationId) return false;
+    if (!content.trim() && !file) return false;
 
     const userId = currentUserId();
     const tempId = generateId("temp");
     const trimmed = content.trim();
+    const messageContent = trimmed || file?.name || "";
     const optimisticMessage: Message = {
       id: tempId,
       conversationId: activeConversationId,
       senderId: userId,
-      content: trimmed || (file ? "📎 Media" : ""),
+      content: messageContent,
       createdAt: new Date().toISOString(),
       status: "sending",
       reactions: [],
@@ -290,13 +305,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
           optimisticMessage,
         ],
       },
+      conversations: state.conversations.map((conversation) =>
+        conversation.id === activeConversationId
+          ? {
+              ...conversation,
+              lastMessage: optimisticMessage.content,
+              lastMessageAt: optimisticMessage.createdAt,
+            }
+          : conversation,
+      ),
       isSending: true,
+      error: null,
       replyTo: null,
     }));
 
     const result = await chatService.sendMessage({
       conversationId: activeConversationId,
-      content: trimmed || (file ? "📎 Media" : ""),
+      content: messageContent,
       replyTo: replyTo ?? undefined,
       file,
     });
@@ -326,6 +351,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           isSending: false,
         };
       });
+      return true;
     } else {
       set((state) => ({
         messages: {
@@ -341,6 +367,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         error: result.error.message,
         isSending: false,
       }));
+      return false;
     }
   },
 

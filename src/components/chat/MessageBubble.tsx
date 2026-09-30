@@ -3,7 +3,16 @@
 import { memo, useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
-import { Check, CheckCheck } from "lucide-react";
+import {
+  Check,
+  CheckCheck,
+  Download,
+  FileArchive,
+  FileAudio,
+  FileImage,
+  FileText,
+  FileVideo,
+} from "lucide-react";
 import type { Message } from "@/types";
 import { formatMessageTime } from "@/lib/date";
 import { cn } from "@/lib/utils";
@@ -135,6 +144,24 @@ function MessageBubble({
             : "Sent";
 
   const isSeen = message.status === "seen";
+  const attachmentName = message.media?.name || "Attachment";
+  const attachmentExtension = attachmentName.includes(".")
+    ? attachmentName.split(".").pop()?.toUpperCase() || "FILE"
+    : message.media?.type.toUpperCase() || "FILE";
+  const AttachmentIcon =
+    message.media?.type === "video"
+      ? FileVideo
+      : message.media?.type === "audio"
+        ? FileAudio
+        : /\.(zip|rar|7z|tar|gz)$/i.test(attachmentName)
+          ? FileArchive
+          : /\.(pdf|doc|docx|txt|rtf)$/i.test(attachmentName)
+            ? FileText
+            : message.media?.type === "image"
+              ? FileImage
+              : FileText;
+  const contentIsAttachmentName =
+    message.media?.name && message.content.trim() === message.media.name;
 
   if (message.isDeleted) {
     return (
@@ -266,10 +293,11 @@ function MessageBubble({
                 <a href={message.media.url} target="_blank" rel="noreferrer">
                   <Image
                     src={message.media.url}
-                    alt="Attachment"
+                    alt={message.media.name || "Image attachment"}
                     width={320}
                     height={240}
-                    className="max-h-64 w-auto rounded-xl object-cover"
+                    unoptimized
+                    className="max-h-64 max-w-full rounded-xl object-contain"
                   />
                 </a>
               )}
@@ -288,16 +316,30 @@ function MessageBubble({
                   href={message.media.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex text-sm underline underline-offset-2"
+                  download={message.media.name || undefined}
+                  className="flex max-w-full items-center gap-3 rounded-xl border border-white/10 bg-black/10 p-3 text-left transition hover:bg-black/20"
                 >
-                  Download attachment
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white/80">
+                    <AttachmentIcon size={20} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">
+                      {attachmentName}
+                    </span>
+                    <span className="mt-0.5 block text-[10px] uppercase text-white/50">
+                      {attachmentExtension} file
+                    </span>
+                  </span>
+                  <Download size={16} className="shrink-0 text-white/60" />
                 </a>
               )}
-              {message.content && message.content !== "📎 Media" && (
+              {message.content &&
+                message.content !== "📎 Media" &&
+                !contentIsAttachmentName && (
                 <p className="whitespace-pre-wrap break-words text-sm md:text-[15px] leading-relaxed">
                   {message.content}
                 </p>
-              )}
+                )}
             </div>
           )}
 

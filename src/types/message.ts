@@ -5,6 +5,7 @@ export type MessageMediaType = "image" | "video" | "audio" | "file";
 export interface MessageMedia {
   url: string;
   type: MessageMediaType;
+  name?: string;
 }
 
 export interface MessageReaction {
