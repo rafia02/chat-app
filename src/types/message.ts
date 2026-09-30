@@ -1,5 +1,12 @@
 export type MessageStatus = "sending" | "sent" | "delivered" | "seen" | "failed";
 
+export type MessageMediaType = "image" | "video" | "audio" | "file";
+
+export interface MessageMedia {
+  url: string;
+  type: MessageMediaType;
+}
+
 export interface MessageReaction {
   emoji: string;
   userId: string;
@@ -24,4 +31,5 @@ export interface Message {
   editedAt?: string;
   isDeleted?: boolean;
   tempId?: string;
+  media?: MessageMedia;
 }

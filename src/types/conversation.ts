@@ -13,4 +13,6 @@ export interface Conversation {
   unreadCount: number;
   isOnline?: boolean;
   typingUserIds?: string[];
+  requestStatus?: "normal" | "pending" | "rejected";
+  requestedBy?: string | null;
 }

@@ -147,9 +147,9 @@ function MessageBubble({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, ease: "easeOut" }}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
       {...(isMobile ? longPressHandlers : {})}
+      onMouseEnter={isMobile ? undefined : handleMouseEnter}
+      onMouseLeave={isMobile ? longPressHandlers.onMouseLeave : handleMouseLeave}
       className={cn(
         "group relative mb-5 md:mb-7 flex",
         own ? "justify-end" : "justify-start"
@@ -232,9 +232,44 @@ function MessageBubble({
               </div>
             </div>
           ) : (
-            <p className="whitespace-pre-wrap break-words text-sm md:text-[15px] leading-relaxed">
-              {message.content}
-            </p>
+            <div className="space-y-2">
+              {message.media?.type === "image" && (
+                <a href={message.media.url} target="_blank" rel="noreferrer">
+                  <Image
+                    src={message.media.url}
+                    alt="Attachment"
+                    width={320}
+                    height={240}
+                    className="max-h-64 w-auto rounded-xl object-cover"
+                  />
+                </a>
+              )}
+              {message.media?.type === "video" && (
+                <video
+                  src={message.media.url}
+                  controls
+                  className="max-h-64 w-full rounded-xl"
+                />
+              )}
+              {message.media?.type === "audio" && (
+                <audio src={message.media.url} controls className="w-full" />
+              )}
+              {message.media?.type === "file" && (
+                <a
+                  href={message.media.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex text-sm underline underline-offset-2"
+                >
+                  Download attachment
+                </a>
+              )}
+              {message.content && message.content !== "📎 Media" && (
+                <p className="whitespace-pre-wrap break-words text-sm md:text-[15px] leading-relaxed">
+                  {message.content}
+                </p>
+              )}
+            </div>
           )}
 
           {message.editedAt && !isEditing && (

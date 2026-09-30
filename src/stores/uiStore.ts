@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 interface UIState {
+  sidebarSection: "chats" | "people" | "requests";
   isSidebarOpen: boolean;
   isMobile: boolean;
   showChatOnMobile: boolean;
@@ -10,9 +11,11 @@ interface UIState {
   openChat: () => void;
   openSidebar: () => void;
   toggleSidebar: () => void;
+  setSidebarSection: (section: UIState["sidebarSection"]) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
+  sidebarSection: "chats",
   isSidebarOpen: true,
   isMobile: false,
   showChatOnMobile: false,
@@ -23,4 +26,5 @@ export const useUIStore = create<UIState>((set) => ({
   openChat: () => set({ showChatOnMobile: true }),
   openSidebar: () => set({ showChatOnMobile: false }),
   toggleSidebar: () => set((s) => ({ isSidebarOpen: !s.isSidebarOpen })),
+  setSidebarSection: (sidebarSection) => set({ sidebarSection }),
 }));

@@ -7,3 +7,5 @@ export { useSocket, useChatSocket } from "./useSocket";
 export { useTypingIndicator, useTypingDisplay } from "./useTyping";
 export { useCall } from "./useCall";
 export { useLongPress } from "./useLongPress";
+export { useUser, useUserNames } from "./useUser";
+

@@ -1,5 +1,18 @@
 export type { User, UserStatus } from "./user";
-export type { Message, MessageStatus, MessageReaction, ReplyTo } from "./message";
+export type {
+  FriendRequest,
+  FriendshipStatus,
+  FriendshipStatusResponse,
+  MessageRequest,
+} from "./social";
+export type {
+  Message,
+  MessageStatus,
+  MessageMedia,
+  MessageMediaType,
+  MessageReaction,
+  ReplyTo,
+} from "./message";
 export type {
   Conversation,
   ConversationType,
@@ -22,18 +35,17 @@ export type {
   CallStatus,
   CallSession,
   SocketAuthPayload,
-  MessageSendPayload,
-  MessageEditPayload,
-  MessageDeletePayload,
-  MessageReactPayload,
+  MessageSeenPayload,
   MessageReadPayload,
-  TypingPayload,
-  CallInitiatePayload,
+  CallStartPayload,
   CallSignalPayload,
+  MessageDeliveredPayload,
+  MessageSeenUpdatePayload,
   MessageStatusPayload,
   PresencePayload,
   TypingUpdatePayload,
   NotificationPayload,
+  CallIncomingPayload,
   SocketConnectionStatus,
   ConversationUpdatedPayload,
 } from "./socket";

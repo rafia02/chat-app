@@ -42,7 +42,7 @@ export default function RegisterPage() {
       email: data.email,
       password: data.password,
     });
-    if (success) router.push("/chat");
+    if (success) router.replace("/chat");
   };
 
   return (
@@ -73,7 +73,9 @@ export default function RegisterPage() {
               </label>
               <Input placeholder="John Doe" {...register("name")} />
               {errors.name && (
-                <p className="mt-1 text-xs text-red-400">{errors.name.message}</p>
+                <p className="mt-1 text-xs text-red-400">
+                  {errors.name.message}
+                </p>
               )}
             </div>
 
@@ -87,7 +89,9 @@ export default function RegisterPage() {
                 {...register("email")}
               />
               {errors.email && (
-                <p className="mt-1 text-xs text-red-400">{errors.email.message}</p>
+                <p className="mt-1 text-xs text-red-400">
+                  {errors.email.message}
+                </p>
               )}
             </div>
 

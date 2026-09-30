@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MessageCircle } from "lucide-react";
@@ -20,7 +19,6 @@ type LoginForm = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const router = useRouter();
   const { login, isLoading, error, clearError } = useAuth();
-  const [showHint, setShowHint] = useState(false);
 
   const {
     register,
@@ -28,13 +26,13 @@ export default function LoginPage() {
     formState: { errors },
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: "rafia@novachat.com", password: "password123" },
+    defaultValues: { email: "", password: "" },
   });
 
   const onSubmit = async (data: LoginForm) => {
     clearError();
     const success = await login(data);
-    if (success) router.push("/chat");
+    if (success) router.replace("/chat");
   };
 
   return (
@@ -69,7 +67,9 @@ export default function LoginPage() {
                 {...register("email")}
               />
               {errors.email && (
-                <p className="mt-1 text-xs text-red-400">{errors.email.message}</p>
+                <p className="mt-1 text-xs text-red-400">
+                  {errors.email.message}
+                </p>
               )}
             </div>
 
@@ -93,20 +93,6 @@ export default function LoginPage() {
           <Button type="submit" loading={isLoading} className="mt-6 w-full">
             Sign In
           </Button>
-
-          <button
-            type="button"
-            onClick={() => setShowHint(!showHint)}
-            className="mt-3 w-full text-center text-xs text-slate-500 hover:text-slate-400"
-          >
-            Demo credentials
-          </button>
-
-          {showHint && (
-            <div className="mt-2 rounded-lg bg-[#111827] px-3 py-2 text-xs text-slate-400">
-              Email: rafia@novachat.com · Password: password123
-            </div>
-          )}
 
           <p className="mt-6 text-center text-sm text-slate-400">
             Don&apos;t have an account?{" "}

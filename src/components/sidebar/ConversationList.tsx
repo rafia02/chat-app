@@ -14,6 +14,9 @@ export default function ConversationList() {
     selectConversation,
     refresh,
   } = useConversations();
+  const visibleConversations = conversations.filter(
+    (conversation) => conversation.requestStatus !== "pending",
+  );
 
   return (
     <div className="mt-4 md:mt-6 2xl:mt-8 flex-1 overflow-y-auto px-3 md:px-4 2xl:px-5 pb-5 min-h-0">
@@ -30,16 +33,16 @@ export default function ConversationList() {
         </button>
       </div>
 
-      {isLoading && conversations.length === 0 ? (
+      {isLoading && visibleConversations.length === 0 ? (
         <LoadingState message="Loading conversations..." />
-      ) : error && conversations.length === 0 ? (
+      ) : error && visibleConversations.length === 0 ? (
         <ErrorState message={error} onRetry={refresh} />
-      ) : conversations.length === 0 ? (
+      ) : visibleConversations.length === 0 ? (
         <div className="py-8 text-center text-sm text-slate-400">
           No conversations found
         </div>
       ) : (
-        conversations.map((conversation) => (
+        visibleConversations.map((conversation) => (
           <ConversationItem
             key={conversation.id}
             conversation={conversation}

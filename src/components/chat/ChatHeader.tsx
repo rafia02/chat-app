@@ -3,9 +3,8 @@
 import Image from "next/image";
 import { Phone, Video, Search, MoreVertical, ArrowLeft } from "lucide-react";
 import type { Conversation } from "@/types";
-import { useResponsiveLayout, useCall, useTypingDisplay } from "@/hooks";
+import { useResponsiveLayout, useCall, useTypingDisplay, useUserNames } from "@/hooks";
 import { useAuthStore } from "@/stores";
-import { getUserById } from "@/mocks/users";
 
 interface ChatHeaderProps {
   conversation: Conversation;
@@ -16,14 +15,11 @@ export default function ChatHeader({ conversation }: ChatHeaderProps) {
   const { startCall } = useCall();
   const currentUserId = useAuthStore((s) => s.user?.id ?? "");
   const typingUserIds = useTypingDisplay(conversation.id, currentUserId);
+  const typingNames = useUserNames(typingUserIds);
 
   const otherParticipantId = conversation.participantIds.find(
     (id) => id !== currentUserId,
   );
-
-  const typingNames = typingUserIds
-    .map((id) => getUserById(id)?.name?.split(" ")[0])
-    .filter(Boolean);
 
   const statusText =
     typingNames.length > 0

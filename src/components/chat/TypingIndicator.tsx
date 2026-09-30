@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { getUserById } from "@/mocks/users";
+import { useUserNames } from "@/hooks";
 
 interface TypingIndicatorProps {
   userIds: string[];
@@ -10,9 +10,11 @@ interface TypingIndicatorProps {
 export default function TypingIndicator({ userIds }: TypingIndicatorProps) {
   if (userIds.length === 0) return null;
 
-  const names = userIds
-    .map((id) => getUserById(id)?.name?.split(" ")[0])
-    .filter(Boolean);
+  return <TypingIndicatorInner userIds={userIds} />;
+}
+
+function TypingIndicatorInner({ userIds }: { userIds: string[] }) {
+  const names = useUserNames(userIds);
 
   const text =
     names.length === 1

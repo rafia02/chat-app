@@ -1,4 +1,10 @@
-import type { Conversation, Message, MessageStatus, ReplyTo, UserStatus } from "./index";
+import type {
+  Conversation,
+  Message,
+  MessageStatus,
+  ReplyTo,
+  UserStatus,
+} from "./index";
 
 export type CallType = "voice" | "video";
 export type CallStatus =
@@ -23,64 +29,41 @@ export interface CallSession {
 }
 
 export interface SocketAuthPayload {
-  userId: string;
   token: string;
 }
 
-export interface MessageSendPayload {
-  conversationId: string;
-  content: string;
-  replyTo?: ReplyTo;
-  tempId?: string;
-}
-
-export interface MessageEditPayload {
-  messageId: string;
-  conversationId: string;
-  content: string;
-}
-
-export interface MessageDeletePayload {
-  messageId: string;
-  conversationId: string;
-}
-
-export interface MessageReactPayload {
-  messageId: string;
-  conversationId: string;
-  emoji: string;
-}
-
-export interface MessageReadPayload {
+export interface MessageSeenPayload {
   conversationId: string;
   messageIds: string[];
 }
 
-export interface TypingPayload {
+export interface CallStartPayload {
   conversationId: string;
-  isTyping: boolean;
-}
-
-export interface CallInitiatePayload {
-  conversationId: string;
-  calleeId: string;
   type: CallType;
 }
 
 export interface CallSignalPayload {
-  callId: string;
+  conversationId: string;
+  callId?: string;
   signal: RTCSessionDescriptionInit | RTCIceCandidateInit;
+  targetUserId?: string;
+  fromUserId?: string;
 }
 
-export interface MessageStatusPayload {
+export interface MessageDeliveredPayload {
   messageId: string;
   conversationId: string;
-  status: MessageStatus;
+}
+
+export interface MessageSeenUpdatePayload {
+  conversationId: string;
+  messageIds: string[];
+  userId: string;
 }
 
 export interface PresencePayload {
   userId: string;
-  status: UserStatus;
+  status?: UserStatus;
 }
 
 export interface TypingUpdatePayload {
@@ -95,6 +78,12 @@ export interface NotificationPayload {
   senderName: string;
 }
 
+export interface CallIncomingPayload {
+  from: string;
+  type: CallType;
+  conversationId?: string;
+}
+
 export type SocketConnectionStatus =
   | "disconnected"
   | "connecting"
@@ -102,42 +91,50 @@ export type SocketConnectionStatus =
   | "reconnecting"
   | "error";
 
-// Client -> Server events
+// Client -> Server events (match nova-chat-backend)
 export const CLIENT_EVENTS = {
-  MESSAGE_SEND: "message:send",
-  MESSAGE_EDIT: "message:edit",
-  MESSAGE_DELETE: "message:delete",
-  MESSAGE_REACT: "message:react",
-  MESSAGE_READ: "message:read",
-  TYPING_START: "typing:start",
-  TYPING_STOP: "typing:stop",
   CONVERSATION_JOIN: "conversation:join",
   CONVERSATION_LEAVE: "conversation:leave",
-  CALL_INITIATE: "call:initiate",
+  TYPING_START: "typing:start",
+  TYPING_STOP: "typing:stop",
+  MESSAGE_SEEN: "message:seen",
+  CALL_START: "call:start",
   CALL_ACCEPT: "call:accept",
-  CALL_REJECT: "call:reject",
   CALL_END: "call:end",
   CALL_SIGNAL: "call:signal",
-  PRESENCE_UPDATE: "presence:update",
 } as const;
 
 // Server -> Client events
 export const SERVER_EVENTS = {
+  FRIEND_REQUEST_NEW: "friend-request:new",
+  FRIEND_REQUEST_ACCEPTED: "friend-request:accepted",
+  FRIEND_REQUEST_REJECTED: "friend-request:rejected",
+  FRIEND_REMOVED: "friend:removed",
+  MESSAGE_REQUEST_NEW: "message-request:new",
+  MESSAGE_REQUEST_ACCEPTED: "message-request:accepted",
+  MESSAGE_REQUEST_REJECTED: "message-request:rejected",
   MESSAGE_NEW: "message:new",
   MESSAGE_UPDATED: "message:updated",
   MESSAGE_DELETED: "message:deleted",
-  MESSAGE_STATUS: "message:status",
   MESSAGE_REACTION: "message:reaction",
-  CONVERSATION_UPDATED: "conversation:updated",
+  MESSAGE_DELIVERED: "message:delivered",
+  MESSAGE_SEEN: "message:seen",
   TYPING_UPDATE: "typing:update",
-  PRESENCE_UPDATE: "presence:update",
-  NOTIFICATION_NEW: "notification:new",
+  USER_ONLINE: "user:online",
+  USER_OFFLINE: "user:offline",
   CALL_INCOMING: "call:incoming",
   CALL_ACCEPTED: "call:accepted",
-  CALL_REJECTED: "call:rejected",
   CALL_ENDED: "call:ended",
   CALL_SIGNAL: "call:signal",
-  ONLINE_USERS: "presence:online-users",
 } as const;
 
 export type ConversationUpdatedPayload = Conversation;
+export type MessageStatusPayload = {
+  messageId: string;
+  conversationId: string;
+  status: MessageStatus;
+};
+
+/** @deprecated kept for transitional typing — prefer MessageSeenPayload */
+export type MessageReadPayload = MessageSeenPayload;
+export type ReplyToPayload = ReplyTo;

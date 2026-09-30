@@ -7,11 +7,13 @@ import { useChatStore } from "@/stores";
 export function useConversations() {
   const conversations = useChatStore((s) => s.conversations);
   const isLoading = useChatStore((s) => s.isLoadingConversations);
+  const hasAttemptedFetch = useChatStore((s) => s.hasAttemptedConversations);
   const error = useChatStore((s) => s.error);
   const searchQuery = useChatStore((s) => s.searchQuery);
   const activeTab = useChatStore((s) => s.activeTab);
   const activeConversationId = useChatStore((s) => s.activeConversationId);
   const fetchConversations = useChatStore((s) => s.fetchConversations);
+  const fetchConversation = useChatStore((s) => s.fetchConversation);
   const setSearchQuery = useChatStore((s) => s.setSearchQuery);
   const setActiveTab = useChatStore((s) => s.setActiveTab);
   const setActiveConversation = useChatStore((s) => s.setActiveConversation);
@@ -21,13 +23,25 @@ export function useConversations() {
   const conversationIdFromUrl = params?.conversationId as string | undefined;
 
   useEffect(() => {
-    if (conversations.length === 0 && !isLoading) {
+    if (conversations.length === 0 && !isLoading && !hasAttemptedFetch) {
       fetchConversations();
     }
-  }, [conversations.length, isLoading, fetchConversations]);
+  }, [conversations.length, isLoading, hasAttemptedFetch, fetchConversations]);
 
   useEffect(() => {
-    if (conversationIdFromUrl && conversationIdFromUrl !== activeConversationId) {
+    if (!conversationIdFromUrl || isLoading) return;
+
+    const exists = conversations.some((c) => c.id === conversationIdFromUrl);
+    if (!exists) {
+      void fetchConversation(conversationIdFromUrl);
+    }
+  }, [conversationIdFromUrl, conversations, isLoading, fetchConversation]);
+
+  useEffect(() => {
+    if (
+      conversationIdFromUrl &&
+      conversationIdFromUrl !== activeConversationId
+    ) {
       setActiveConversation(conversationIdFromUrl);
     }
   }, [conversationIdFromUrl, activeConversationId, setActiveConversation]);
@@ -37,7 +51,12 @@ export function useConversations() {
       setActiveConversation(id);
       router.push(`/chat/${id}`);
     },
-    [setActiveConversation, router]
+    [setActiveConversation, router],
+  );
+
+  const refresh = useCallback(
+    () => fetchConversations(true),
+    [fetchConversations],
   );
 
   return {
@@ -50,6 +69,6 @@ export function useConversations() {
     setSearchQuery,
     setActiveTab,
     selectConversation,
-    refresh: fetchConversations,
+    refresh,
   };
 }

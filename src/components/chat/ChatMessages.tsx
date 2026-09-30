@@ -1,12 +1,11 @@
 "use client";
 
-import { useMessages, useTypingDisplay } from "@/hooks";
+import { useMessages, useTypingDisplay, useUser } from "@/hooks";
 import { LoadingState, ErrorState } from "@/components/ui";
 import DateDivider from "./DateDivider";
 import MessageBubble from "./MessageBubble";
 import TypingIndicator from "./TypingIndicator";
 import { isSameDay } from "@/lib/date";
-import { getUserById } from "@/mocks/users";
 import type { Message } from "@/types";
 
 interface ChatMessagesProps {
@@ -88,7 +87,7 @@ function MessageItem({
   onEdit: (messageId: string, content: string) => void;
   onDelete: (messageId: string) => void;
 }) {
-  const sender = getUserById(message.senderId);
+  const sender = useUser(message.senderId);
   const isOwn = message.senderId === currentUserId;
 
   return (

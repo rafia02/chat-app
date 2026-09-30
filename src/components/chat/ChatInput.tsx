@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, KeyboardEvent } from "react";
+import { useState, useRef, useEffect, KeyboardEvent, ChangeEvent } from "react";
 import { Smile, Paperclip, Mic, SendHorizontal, X } from "lucide-react";
 import { useMessages, useTypingIndicator } from "@/hooks";
 import { cn } from "@/lib/utils";
@@ -11,7 +11,9 @@ interface ChatInputProps {
 
 export default function ChatInput({ conversationId }: ChatInputProps) {
   const [text, setText] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { sendMessage, isSending, replyTo, setReplyTo } =
     useMessages(conversationId);
   const { handleTyping, stopTyping } = useTypingIndicator(conversationId);
@@ -21,11 +23,13 @@ export default function ChatInput({ conversationId }: ChatInputProps) {
   }, [replyTo]);
 
   const handleSend = async () => {
-    if (!text.trim() || isSending) return;
+    if ((!text.trim() && !selectedFile) || isSending) return;
     const content = text;
+    const file = selectedFile ?? undefined;
     setText("");
+    setSelectedFile(null);
     stopTyping();
-    await sendMessage(content);
+    await sendMessage(content, file);
   };
 
   const handleChange = (value: string) => {
@@ -41,6 +45,12 @@ export default function ChatInput({ conversationId }: ChatInputProps) {
     }
   };
 
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) setSelectedFile(file);
+    e.target.value = "";
+  };
+
   return (
     <div className="border border-[#222C43] p-3 2xl:p-4 mx-2 md:mx-4 shrink-0 rounded-2xl">
       {replyTo && (
@@ -53,6 +63,18 @@ export default function ChatInput({ conversationId }: ChatInputProps) {
           </div>
           <button
             onClick={() => setReplyTo(null)}
+            className="ml-3 shrink-0 rounded-lg p-1 text-slate-400 hover:bg-[#1E293B] hover:text-white"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
+      {selectedFile && (
+        <div className="mb-2 flex items-center justify-between rounded-xl border border-[#222C43] bg-[#111827] px-4 py-2">
+          <p className="truncate text-sm text-slate-300">{selectedFile.name}</p>
+          <button
+            onClick={() => setSelectedFile(null)}
             className="ml-3 shrink-0 rounded-lg p-1 text-slate-400 hover:bg-[#1E293B] hover:text-white"
           >
             <X size={16} />
@@ -80,8 +102,17 @@ export default function ChatInput({ conversationId }: ChatInputProps) {
           className="flex-1 bg-transparent text-sm md:text-base text-white placeholder:text-slate-500 outline-none disabled:opacity-50"
         />
 
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.zip"
+          onChange={handleFileChange}
+        />
+
         <button
           type="button"
+          onClick={() => fileInputRef.current?.click()}
           className="hidden md:block text-slate-400 transition hover:text-indigo-400"
           aria-label="Attach file"
         >
@@ -99,10 +130,10 @@ export default function ChatInput({ conversationId }: ChatInputProps) {
         <button
           type="button"
           onClick={handleSend}
-          disabled={!text.trim() || isSending}
+          disabled={(!text.trim() && !selectedFile) || isSending}
           className={cn(
             "flex h-9 w-9 md:h-10 md:w-10 2xl:h-12 2xl:w-12 items-center justify-center rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 transition",
-            text.trim() && !isSending
+            (text.trim() || selectedFile) && !isSending
               ? "hover:scale-105"
               : "opacity-50 cursor-not-allowed",
           )}

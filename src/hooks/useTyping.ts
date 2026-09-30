@@ -11,7 +11,7 @@ export function useTypingIndicator(conversationId: string) {
 
   const stopTyping = useCallback(() => {
     if (isTypingRef.current) {
-      socketEmitter.stopTyping({ conversationId, isTyping: false });
+      socketEmitter.stopTyping(conversationId);
       isTypingRef.current = false;
     }
     if (typingTimeoutRef.current) {
@@ -22,7 +22,7 @@ export function useTypingIndicator(conversationId: string) {
 
   const handleTyping = useCallback(() => {
     if (!isTypingRef.current) {
-      socketEmitter.startTyping({ conversationId, isTyping: true });
+      socketEmitter.startTyping(conversationId);
       isTypingRef.current = true;
     }
 
