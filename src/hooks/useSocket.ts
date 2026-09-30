@@ -10,7 +10,11 @@ import {
   useUsersStore,
   useSocialStore,
 } from "@/stores";
-import { socketClient, socketEmitter, registerSocketListeners } from "@/services/socket";
+import {
+  socketClient,
+  socketEmitter,
+  registerSocketListeners,
+} from "@/services/socket";
 import { getAuthSession } from "@/lib/storage";
 import { avatarUrl } from "@/lib/mappers";
 import { handleCallSignal, handleRemoteCallEnded } from "@/hooks/useCall";

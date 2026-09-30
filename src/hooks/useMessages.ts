@@ -9,7 +9,7 @@ export function useMessages(conversationId: string | null) {
   const messages = useChatStore((s) =>
     conversationId
       ? (s.messages[conversationId] ?? EMPTY_MESSAGES)
-      : EMPTY_MESSAGES
+      : EMPTY_MESSAGES,
   );
   const isLoadingMessages = useChatStore((s) => s.isLoadingMessages);
   const isSending = useChatStore((s) => s.isSending);
@@ -46,28 +46,28 @@ export function useMessages(conversationId: string | null) {
     async (content: string, file?: File) => {
       return sendMessage(content, file);
     },
-    [sendMessage]
+    [sendMessage],
   );
 
   const handleReaction = useCallback(
     (messageId: string, emoji: string) => {
       if (user) addReaction(messageId, emoji, user.id);
     },
-    [addReaction, user]
+    [addReaction, user],
   );
 
   const handleEdit = useCallback(
     (messageId: string, content: string) => {
       editMessage(messageId, content);
     },
-    [editMessage]
+    [editMessage],
   );
 
   const handleDelete = useCallback(
     (messageId: string) => {
       deleteMessage(messageId);
     },
-    [deleteMessage]
+    [deleteMessage],
   );
 
   return {
