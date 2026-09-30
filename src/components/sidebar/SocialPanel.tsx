@@ -25,6 +25,7 @@ import type { User } from "@/types";
 
 type PanelView = "people" | "requests";
 type RequestTab = "received" | "sent";
+type PeopleTab = "friends" | "allUsers";
 
 function PersonAvatar({ user, online }: { user: User; online?: boolean }) {
   return (
@@ -136,6 +137,7 @@ export default function SocialPanel({ view }: { view: PanelView }) {
   const clearUserSearchError = useUsersStore((state) => state.clearError);
   const fetchUsers = useUsersStore((state) => state.fetchUsers);
   const [query, setQuery] = useState("");
+  const [peopleTab, setPeopleTab] = useState<PeopleTab>("friends");
   const [friendTab, setFriendTab] = useState<RequestTab>("received");
   const [messageTab, setMessageTab] = useState<RequestTab>("received");
   const [requestKind, setRequestKind] = useState<"friends" | "messages">(
@@ -166,6 +168,22 @@ export default function SocialPanel({ view }: { view: PanelView }) {
       );
   }, [directoryUsers, query, userId]);
 
+  const visiblePeople = useMemo(() => {
+    if (peopleTab === "friends") {
+      return friends.filter((friend) => {
+        const normalizedQuery = query.trim().toLocaleLowerCase();
+        return (
+          !normalizedQuery ||
+          friend.name.toLocaleLowerCase().includes(normalizedQuery) ||
+          friend.email.toLocaleLowerCase().includes(normalizedQuery)
+        );
+      });
+    }
+
+    const friendIds = new Set(friends.map((friend) => friend.id));
+    return people.filter((person) => !friendIds.has(person.id));
+  }, [friends, people, peopleTab, query]);
+
   const openConversation = async (targetId: string) => {
     const conversation = await createDM(targetId);
     if (!conversation) return;
@@ -191,18 +209,38 @@ export default function SocialPanel({ view }: { view: PanelView }) {
           {view === "people" ? "Friends" : "Requests"}
         </h3>
         {view === "people" ? (
-          <div className="relative mt-3">
-            <Search
-              size={17}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-            />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Find friends by name or email"
-              className="h-10 w-full rounded-lg border border-[#222C43] bg-[#111827] pl-10 pr-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-indigo-500"
-            />
-          </div>
+          <>
+            <div className="mt-3 grid grid-cols-2 gap-1 rounded-lg bg-[#080D18] p-1">
+              {(
+                [
+                  { id: "friends", label: "Friends" },
+                  { id: "allUsers", label: "All Users" },
+                ] as const
+              ).map((tab) => (
+                <button
+                  type="button"
+                  key={tab.id}
+                  onClick={() => setPeopleTab(tab.id)}
+                  aria-pressed={peopleTab === tab.id}
+                  className={`rounded-md py-2 text-xs font-medium ${peopleTab === tab.id ? "bg-[#1B2740] text-white" : "text-slate-400 hover:text-white"}`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            <div className="relative mt-3">
+              <Search
+                size={17}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+              />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={`Search ${peopleTab === "friends" ? "friends" : "users"} by name or email`}
+                className="h-10 w-full rounded-lg border border-[#222C43] bg-[#111827] pl-10 pr-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-indigo-500"
+              />
+            </div>
+          </>
         ) : (
           <div className="mt-3 grid grid-cols-2 gap-1 rounded-lg bg-[#080D18] p-1">
             {(["friends", "messages"] as const).map((kind) => (
@@ -269,19 +307,30 @@ export default function SocialPanel({ view }: { view: PanelView }) {
         {view === "people" && (
           <>
             <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              People / Find Friends
+              {peopleTab === "friends" ? "My Friends" : "All Users"}
             </p>
-            {loadingUsers && directoryUsers.length === 0 ? (
-              <LoadingState message="Loading people..." />
+            {(loadingUsers && directoryUsers.length === 0) ||
+            (socialLoading &&
+              peopleTab === "friends" &&
+              friends.length === 0) ? (
+              <LoadingState
+                message={
+                  peopleTab === "friends"
+                    ? "Loading friends..."
+                    : "Loading people..."
+                }
+              />
             ) : null}
-            {!loadingUsers && people.length === 0 ? (
+            {!loadingUsers && !socialLoading && visiblePeople.length === 0 ? (
               <p className="py-8 text-center text-sm text-slate-400">
                 {query.trim()
-                  ? "No people match your search"
-                  : "No other registered users found"}
+                  ? `No ${peopleTab === "friends" ? "friends" : "users"} match your search`
+                  : peopleTab === "friends"
+                    ? "You have no friends yet"
+                    : "No other registered users found"}
               </p>
             ) : null}
-            {people.map((person) => {
+            {visiblePeople.map((person) => {
               const derivedStatus = friends.some(
                 (friend) => friend.id === person.id,
               )
@@ -362,23 +411,6 @@ export default function SocialPanel({ view }: { view: PanelView }) {
                           className="rounded-md bg-[#1B2740] px-2 py-2 text-[10px] font-medium text-slate-200 disabled:opacity-50"
                         >
                           Reject
-                        </button>
-                      </div>
-                    ) : status === "sent" && requestSent ? (
-                      <div className="flex items-center gap-1">
-                        <span className="rounded-md bg-[#1B2740] px-2 py-2 text-[10px] font-medium text-indigo-200">
-                          Request Sent
-                        </span>
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={async () => {
-                            if (await cancelFriendRequest(requestSent.id))
-                              showSuccess("Friend request cancelled");
-                          }}
-                          className="rounded-md border border-[#29344E] px-2 py-2 text-[10px] text-slate-300 disabled:opacity-50"
-                        >
-                          Cancel
                         </button>
                       </div>
                     ) : status === "sent" ? (
