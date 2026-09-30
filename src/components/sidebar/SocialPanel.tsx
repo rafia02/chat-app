@@ -84,7 +84,6 @@ export default function SocialPanel({ view }: { view: PanelView }) {
   const router = useRouter();
   const userId = useAuthStore((state) => state.user?.id ?? "");
   const openChat = useUIStore((state) => state.openChat);
-  const setSidebarSection = useUIStore((state) => state.setSidebarSection);
   const friends = useSocialStore((state) => state.friends);
   const receivedFriends = useSocialStore(
     (state) => state.receivedFriendRequests,
@@ -94,12 +93,6 @@ export default function SocialPanel({ view }: { view: PanelView }) {
     (state) => state.receivedMessageRequests,
   );
   const sentMessages = useSocialStore((state) => state.sentMessageRequests);
-  const friendshipStatuses = useSocialStore(
-    (state) => state.friendshipStatuses,
-  );
-  const friendshipStatusErrors = useSocialStore(
-    (state) => state.friendshipStatusErrors,
-  );
   const socialLoading = useSocialStore(
     (state) =>
       state.loadingFriends ||
@@ -115,9 +108,6 @@ export default function SocialPanel({ view }: { view: PanelView }) {
   );
   const loadMessageRequests = useSocialStore(
     (state) => state.loadMessageRequests,
-  );
-  const loadFriendshipStatus = useSocialStore(
-    (state) => state.loadFriendshipStatus,
   );
   const sendFriendRequest = useSocialStore((state) => state.sendFriendRequest);
   const acceptFriendRequest = useSocialStore(
@@ -140,11 +130,11 @@ export default function SocialPanel({ view }: { view: PanelView }) {
     (state) => state.addSentMessageRequest,
   );
   const createDM = useChatStore((state) => state.createDM);
-  const searchResults = useUsersStore((state) => state.searchResults);
-  const searchingUsers = useUsersStore((state) => state.isLoading);
+  const directoryUsers = useUsersStore((state) => state.directoryUsers);
+  const loadingUsers = useUsersStore((state) => state.isLoading);
   const userSearchError = useUsersStore((state) => state.error);
   const clearUserSearchError = useUsersStore((state) => state.clearError);
-  const searchUsers = useUsersStore((state) => state.searchUsers);
+  const fetchUsers = useUsersStore((state) => state.fetchUsers);
   const [query, setQuery] = useState("");
   const [friendTab, setFriendTab] = useState<RequestTab>("received");
   const [messageTab, setMessageTab] = useState<RequestTab>("received");
@@ -156,32 +146,25 @@ export default function SocialPanel({ view }: { view: PanelView }) {
   useEffect(() => {
     if (view === "people") {
       void loadFriends(true);
+      void loadFriendRequests(true);
+      void fetchUsers();
     } else {
       void loadFriendRequests(true);
       void loadMessageRequests(true);
     }
-  }, [view, loadFriends, loadFriendRequests, loadMessageRequests]);
+  }, [view, loadFriends, fetchUsers, loadFriendRequests, loadMessageRequests]);
 
-  useEffect(() => {
-    const trimmed = query.trim();
-    if (!trimmed) {
-      void searchUsers("");
-      return;
-    }
-    const timer = setTimeout(() => void searchUsers(trimmed), 300);
-    return () => clearTimeout(timer);
-  }, [query, searchUsers]);
-
-  const resultIds = useMemo(
-    () => searchResults.map((user) => user.id).join(","),
-    [searchResults],
-  );
-  useEffect(() => {
-    resultIds
-      .split(",")
-      .filter((id) => id && id !== userId)
-      .forEach((id) => void loadFriendshipStatus(id));
-  }, [resultIds, userId, loadFriendshipStatus]);
+  const people = useMemo(() => {
+    const normalizedQuery = query.trim().toLocaleLowerCase();
+    return directoryUsers
+      .filter((person) => person.id !== userId)
+      .filter(
+        (person) =>
+          !normalizedQuery ||
+          person.name.toLocaleLowerCase().includes(normalizedQuery) ||
+          person.email.toLocaleLowerCase().includes(normalizedQuery),
+      );
+  }, [directoryUsers, query, userId]);
 
   const openConversation = async (targetId: string) => {
     const conversation = await createDM(targetId);
@@ -216,7 +199,7 @@ export default function SocialPanel({ view }: { view: PanelView }) {
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Find people by name"
+              placeholder="Find friends by name or email"
               className="h-10 w-full rounded-lg border border-[#222C43] bg-[#111827] pl-10 pr-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-indigo-500"
             />
           </div>
@@ -247,8 +230,11 @@ export default function SocialPanel({ view }: { view: PanelView }) {
                   clearError();
                   clearUserSearchError();
                   if (view === "people") {
-                    if (query.trim()) void searchUsers(query.trim());
-                    else void loadFriends(true);
+                    void Promise.all([
+                      fetchUsers(),
+                      loadFriends(true),
+                      loadFriendRequests(true),
+                    ]);
                   } else {
                     void loadFriendRequests(true);
                     void loadMessageRequests(true);
@@ -282,127 +268,141 @@ export default function SocialPanel({ view }: { view: PanelView }) {
 
         {view === "people" && (
           <>
-            {query.trim() ? (
-              <>
-                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Search results
-                </p>
-                {searchingUsers && searchResults.length === 0 ? (
-                  <LoadingState message="Searching people..." />
-                ) : null}
-                {!searchingUsers &&
-                searchResults.filter((user) => user.id !== userId).length ===
-                  0 ? (
-                  <p className="py-8 text-center text-sm text-slate-400">
-                    No people found
-                  </p>
-                ) : null}
-                {searchResults
-                  .filter((user) => user.id !== userId)
-                  .map((user) => {
-                    const status =
-                      friendshipStatuses[user.id]?.status ?? "none";
-                    const sending = pendingActions[user.id];
-                    const checkingStatus =
-                      pendingActions[`friendship:${user.id}`];
-                    const statusError = friendshipStatusErrors[user.id];
-                    return (
-                      <UserRow
-                        key={user.id}
-                        user={user}
-                        onMessage={() => void openConversation(user.id)}
-                        canMessage={status !== "received"}
-                        trailing={
-                          status === "friends" ? (
-                            <span className="rounded-md bg-emerald-500/10 px-2 py-2 text-[10px] font-medium text-emerald-300">
-                              Friends
-                            </span>
-                          ) : status === "sent" ? (
-                            <span className="rounded-md bg-[#1B2740] px-2 py-2 text-[10px] font-medium text-indigo-200">
-                              Request sent
-                            </span>
-                          ) : status === "received" ? (
-                            <button
-                              type="button"
-                              onClick={() => setSidebarSection("requests")}
-                              className="rounded-md bg-[#1B2740] px-2 py-2 text-[10px] font-medium text-indigo-200"
-                            >
-                              Request received
-                            </button>
-                          ) : statusError ? (
-                            <button
-                              type="button"
-                              onClick={() => void loadFriendshipStatus(user.id)}
-                              className="text-[10px] text-red-300"
-                            >
-                              Retry status
-                            </button>
-                          ) : checkingStatus || !friendshipStatuses[user.id] ? (
-                            <span className="px-2 text-[10px] text-slate-500">
-                              Checking...
-                            </span>
-                          ) : (
-                            <button
-                              type="button"
-                              disabled={sending}
-                              onClick={async () => {
-                                if (await sendFriendRequest(user.id))
-                                  showSuccess("Friend request sent");
-                              }}
-                              className="flex h-9 items-center gap-1 rounded-lg bg-indigo-600 px-2 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
-                              aria-label={`Add ${user.name} as a friend`}
-                            >
-                              <UserPlus size={14} /> Add
-                            </button>
-                          )
-                        }
-                      />
-                    );
-                  })}
-              </>
-            ) : (
-              <>
-                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Your friends
-                </p>
-                {socialLoading && friends.length === 0 ? (
-                  <LoadingState message="Loading friends..." />
-                ) : null}
-                {!socialLoading && friends.length === 0 ? (
-                  <p className="py-8 text-center text-sm text-slate-400">
-                    No friends yet. Search for people to connect.
-                  </p>
-                ) : null}
-                {friends.map((friend) => (
-                  <UserRow
-                    key={friend.id}
-                    user={friend}
-                    onMessage={() => void openConversation(friend.id)}
-                    trailing={
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              People / Find Friends
+            </p>
+            {loadingUsers && directoryUsers.length === 0 ? (
+              <LoadingState message="Loading people..." />
+            ) : null}
+            {!loadingUsers && people.length === 0 ? (
+              <p className="py-8 text-center text-sm text-slate-400">
+                {query.trim()
+                  ? "No people match your search"
+                  : "No other registered users found"}
+              </p>
+            ) : null}
+            {people.map((person) => {
+              const derivedStatus = friends.some(
+                (friend) => friend.id === person.id,
+              )
+                ? "friends"
+                : receivedFriends.some(
+                      (request) => request.senderId === person.id,
+                    )
+                  ? "received"
+                  : sentFriends.some(
+                        (request) => request.recipientId === person.id,
+                      )
+                    ? "sent"
+                    : "none";
+              const status = derivedStatus;
+              const requestReceived = receivedFriends.find(
+                (request) => request.senderId === person.id,
+              );
+              const requestSent = sentFriends.find(
+                (request) => request.recipientId === person.id,
+              );
+              const actionId =
+                requestReceived?.id ?? requestSent?.id ?? person.id;
+              const busy = Boolean(pendingActions[actionId]);
+
+              return (
+                <UserRow
+                  key={person.id}
+                  user={person}
+                  onMessage={() => void openConversation(person.id)}
+                  canMessage={status !== "received"}
+                  trailing={
+                    status === "friends" ? (
+                      <div className="flex items-center gap-1">
+                        <span className="rounded-md bg-emerald-500/10 px-2 py-2 text-[10px] font-medium text-emerald-300">
+                          Friends
+                        </span>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                `Remove ${person.name} from your friends?`,
+                              )
+                            ) {
+                              void removeFriend(person.id).then((removed) => {
+                                if (removed) showSuccess("Friend removed");
+                              });
+                            }
+                          }}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-500/10 hover:text-red-300 disabled:opacity-50"
+                          aria-label={`Remove ${person.name}`}
+                          title="Remove friend"
+                        >
+                          <UserMinus size={15} />
+                        </button>
+                      </div>
+                    ) : status === "received" && requestReceived ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={async () => {
+                            if (await acceptFriendRequest(requestReceived.id))
+                              showSuccess("Friend request accepted");
+                          }}
+                          className="rounded-md bg-emerald-600 px-2 py-2 text-[10px] font-medium text-white disabled:opacity-50"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={async () => {
+                            if (await rejectFriendRequest(requestReceived.id))
+                              showSuccess("Friend request rejected");
+                          }}
+                          className="rounded-md bg-[#1B2740] px-2 py-2 text-[10px] font-medium text-slate-200 disabled:opacity-50"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    ) : status === "sent" && requestSent ? (
+                      <div className="flex items-center gap-1">
+                        <span className="rounded-md bg-[#1B2740] px-2 py-2 text-[10px] font-medium text-indigo-200">
+                          Request Sent
+                        </span>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={async () => {
+                            if (await cancelFriendRequest(requestSent.id))
+                              showSuccess("Friend request cancelled");
+                          }}
+                          className="rounded-md border border-[#29344E] px-2 py-2 text-[10px] text-slate-300 disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : status === "sent" ? (
+                      <span className="rounded-md bg-[#1B2740] px-2 py-2 text-[10px] font-medium text-indigo-200">
+                        Request Sent
+                      </span>
+                    ) : (
                       <button
                         type="button"
-                        onClick={() => {
-                          if (
-                            window.confirm(
-                              `Remove ${friend.name} from your friends?`,
-                            )
-                          )
-                            void removeFriend(friend.id).then(
-                              (removed) =>
-                                removed && showSuccess("Friend removed"),
-                            );
+                        disabled={busy || socialLoading}
+                        onClick={async () => {
+                          if (await sendFriendRequest(person.id))
+                            showSuccess("Friend request sent");
                         }}
-                        className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-500/10 hover:text-red-300"
-                        aria-label={`Remove ${friend.name}`}
-                        title="Remove friend"
+                        className="flex h-9 items-center gap-1 rounded-lg bg-indigo-600 px-2 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+                        aria-label={`Add ${person.name} as a friend`}
                       >
-                        <UserMinus size={16} />
+                        <UserPlus size={14} /> Add Friend
                       </button>
-                    }
-                  />
-                ))}
-              </>
-            )}
+                    )
+                  }
+                />
+              );
+            })}
           </>
         )}
 

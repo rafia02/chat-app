@@ -102,12 +102,14 @@ export function useChatSocket() {
       },
       onUserOnline: (payload) => {
         useChatStore.getState().handleUserOnline(payload.userId);
+        useUsersStore.getState().setUserStatus(payload.userId, "online");
         useSocialStore
           .getState()
           .handleFriendPresence(payload.userId, "online");
       },
       onUserOffline: (payload) => {
         useChatStore.getState().handleUserOffline(payload.userId);
+        useUsersStore.getState().setUserStatus(payload.userId, "offline");
         useSocialStore
           .getState()
           .handleFriendPresence(payload.userId, "offline");

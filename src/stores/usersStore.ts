@@ -1,16 +1,18 @@
 import { create } from "zustand";
-import type { User } from "@/types";
+import type { User, UserStatus } from "@/types";
 import { userService } from "@/services/user/userService";
 import { getAuthSession, setAuthSession } from "@/lib/storage";
 import { useAuthStore } from "@/stores/authStore";
 
 interface UsersState {
   usersById: Record<string, User>;
+  directoryUsers: User[];
   searchResults: User[];
   isLoading: boolean;
   error: string | null;
   upsertUser: (user: User) => void;
   upsertUsers: (users: User[]) => void;
+  setUserStatus: (userId: string, status: UserStatus) => void;
   getUser: (id: string) => User | undefined;
   ensureUser: (id: string) => Promise<User | undefined>;
   fetchUsers: () => Promise<User[]>;
@@ -25,6 +27,7 @@ let latestSearchId = 0;
 
 export const useUsersStore = create<UsersState>((set, get) => ({
   usersById: {},
+  directoryUsers: [],
   searchResults: [],
   isLoading: false,
   error: null,
@@ -67,11 +70,23 @@ export const useUsersStore = create<UsersState>((set, get) => ({
     const result = await userService.getUsers();
     if (result.success) {
       get().upsertUsers(result.data);
-      set({ isLoading: false });
+      set({ isLoading: false, directoryUsers: result.data });
       return result.data;
     }
-    set({ isLoading: false, error: result.error.message });
+    set({ isLoading: false, error: result.error.message, directoryUsers: [] });
     return [];
+  },
+
+  setUserStatus: (userId, status) => {
+    const update = (user: User) =>
+      user.id === userId ? { ...user, status } : user;
+    set((state) => ({
+      usersById: state.usersById[userId]
+        ? { ...state.usersById, [userId]: update(state.usersById[userId]) }
+        : state.usersById,
+      directoryUsers: state.directoryUsers.map(update),
+      searchResults: state.searchResults.map(update),
+    }));
   },
 
   searchUsers: async (query) => {
