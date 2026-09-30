@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import { ChevronDown, LogOut, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/hooks";
+import Avatar from "@/components/ui/Avatar";
 
 export default function SidebarFooter() {
   const { user, logout } = useAuth();
@@ -29,19 +29,21 @@ export default function SidebarFooter() {
     <div className="relative border-t border-[#222C43] bg-[#111827] px-3 md:px-4 py-3 2xl:p-5 shrink-0">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 md:gap-3 min-w-0">
-          <Image
+          <Avatar
+            name={user.name}
             src={user.avatar}
-            alt={user.name}
             width={52}
             height={52}
-            className="rounded-full w-9 h-9 md:w-10 md:h-10 2xl:w-14 2xl:h-14 object-cover shrink-0"
+            className="h-9 w-9 text-[10px] md:h-10 md:w-10 md:text-xs 2xl:h-14 2xl:w-14"
           />
 
           <div className="min-w-0">
             <h3 className="truncate font-semibold text-sm md:text-base text-white">
               {user.name}
             </h3>
-            <p className={`text-xs md:text-sm capitalize ${statusColors[user.status]}`}>
+            <p
+              className={`text-xs md:text-sm capitalize ${statusColors[user.status]}`}
+            >
               {user.status}
             </p>
           </div>

@@ -1,10 +1,15 @@
 "use client";
 
-import Image from "next/image";
 import { Phone, Video, Search, MoreVertical, ArrowLeft } from "lucide-react";
 import type { Conversation } from "@/types";
-import { useResponsiveLayout, useCall, useTypingDisplay, useUserNames } from "@/hooks";
+import {
+  useResponsiveLayout,
+  useCall,
+  useTypingDisplay,
+  useUserNames,
+} from "@/hooks";
 import { useAuthStore } from "@/stores";
+import Avatar from "@/components/ui/Avatar";
 
 interface ChatHeaderProps {
   conversation: Conversation;
@@ -65,12 +70,12 @@ export default function ChatHeader({ conversation }: ChatHeaderProps) {
         )}
 
         <div className="relative shrink-0">
-          <Image
+          <Avatar
+            name={conversation.name}
             src={conversation.avatar}
-            alt={conversation.name}
             width={56}
             height={56}
-            className="rounded-full h-10 w-10 md:h-12 md:w-12 2xl:h-14 2xl:w-14 object-cover"
+            className="h-10 w-10 text-xs md:h-12 md:w-12 2xl:h-14 2xl:w-14"
           />
           {conversation.isOnline && (
             <span className="absolute bottom-0.5 right-0.5 h-3 w-3 rounded-full border-2 border-[#0F172A] bg-green-500" />

@@ -1,9 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import { Conversation } from "@/types";
 import { motion } from "framer-motion";
 import { useUIStore } from "@/stores";
+import Avatar from "@/components/ui/Avatar";
 
 interface Props {
   conversation: Conversation;
@@ -37,12 +37,12 @@ export default function ConversationItem({
     >
       <div className="flex items-center gap-3 2xl:gap-4">
         <div className="relative shrink-0">
-          <Image
+          <Avatar
+            name={conversation.name}
             src={conversation.avatar}
-            alt={conversation.name}
             width={56}
             height={56}
-            className="rounded-full object-cover w-10 h-10 2xl:w-14 2xl:h-14"
+            className="h-10 w-10 text-xs 2xl:h-14 2xl:w-14"
           />
 
           {conversation.isOnline && (

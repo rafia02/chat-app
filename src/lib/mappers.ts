@@ -141,14 +141,18 @@ function mapMedia(raw: unknown): MessageMedia | undefined {
 export function mapMessage(raw: unknown): Message {
   const data = (raw ?? {}) as Record<string, unknown>;
   const reactionsRaw = Array.isArray(data.reactions) ? data.reactions : [];
-
-  const reactions: MessageReaction[] = reactionsRaw.map((r) => {
+  const reactionsByUser = new Map<string, MessageReaction>();
+  reactionsRaw.forEach((r) => {
     const reaction = (r ?? {}) as Record<string, unknown>;
-    return {
+    const mapped = {
       emoji: String(reaction.emoji ?? ""),
       userId: String(reaction.userId ?? ""),
     };
+    if (mapped.emoji && mapped.userId) {
+      reactionsByUser.set(mapped.userId, mapped);
+    }
   });
+  const reactions = Array.from(reactionsByUser.values());
 
   const status = data.status;
   const messageStatus =

@@ -3,7 +3,7 @@
 import { memo, useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
-import { Check, CheckCheck, X } from "lucide-react";
+import { Check, CheckCheck } from "lucide-react";
 import type { Message } from "@/types";
 import { formatMessageTime } from "@/lib/date";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ import { useLongPress } from "@/hooks/useLongPress";
 import ReactionPicker from "./ReactionPicker";
 import MessageContextMenu from "./MessageContextMenu";
 import ReplyPreview from "./ReplyPreview";
+import Avatar from "@/components/ui/Avatar";
 
 interface MessageBubbleProps {
   message: Message;
@@ -73,7 +74,10 @@ function MessageBubble({
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
         closeAll();
       }
     };
@@ -112,8 +116,10 @@ function MessageBubble({
     Record<string, { count: number; userIds: string[] }>
   >((acc, r) => {
     if (!acc[r.emoji]) acc[r.emoji] = { count: 0, userIds: [] };
-    acc[r.emoji].count++;
-    acc[r.emoji].userIds.push(r.userId);
+    if (!acc[r.emoji].userIds.includes(r.userId)) {
+      acc[r.emoji].count++;
+      acc[r.emoji].userIds.push(r.userId);
+    }
     return acc;
   }, {});
 
@@ -132,9 +138,13 @@ function MessageBubble({
 
   if (message.isDeleted) {
     return (
-      <div className={`mb-5 md:mb-7 flex ${own ? "justify-end" : "justify-start"}`}>
+      <div
+        className={`mb-5 md:mb-7 flex ${own ? "justify-end" : "justify-start"}`}
+      >
         <div className="max-w-[85%] md:max-w-[68%] rounded-2xl border border-dashed border-[#26314A] bg-[#0f1520]/50 px-5 py-3">
-          <p className="text-sm italic text-slate-500">This message was deleted</p>
+          <p className="text-sm italic text-slate-500">
+            This message was deleted
+          </p>
         </div>
       </div>
     );
@@ -149,19 +159,21 @@ function MessageBubble({
       transition={{ duration: 0.2, ease: "easeOut" }}
       {...(isMobile ? longPressHandlers : {})}
       onMouseEnter={isMobile ? undefined : handleMouseEnter}
-      onMouseLeave={isMobile ? longPressHandlers.onMouseLeave : handleMouseLeave}
+      onMouseLeave={
+        isMobile ? longPressHandlers.onMouseLeave : handleMouseLeave
+      }
       className={cn(
         "group relative mb-5 md:mb-7 flex",
-        own ? "justify-end" : "justify-start"
+        own ? "justify-end" : "justify-start",
       )}
     >
-      {!own && avatar && (
-        <Image
+      {!own && (
+        <Avatar
+          name={sender || "Unknown"}
           src={avatar}
-          alt={sender || "avatar"}
           width={42}
           height={42}
-          className="mr-2 md:mr-3 mt-auto rounded-full w-8 h-8 md:w-10 md:h-10 object-cover ring-2 ring-transparent transition-all duration-300 group-hover:ring-indigo-500/20"
+          className="mr-2 md:mr-3 mt-auto h-8 w-8 md:h-10 md:w-10 text-[10px] md:text-xs ring-2 ring-transparent transition-all duration-300 group-hover:ring-indigo-500/20"
         />
       )}
 
@@ -177,10 +189,27 @@ function MessageBubble({
           own={own}
           copied={copied}
           onReact={() => setShowReactionPicker(true)}
-          onReply={() => { onReply?.(); closeAll(); }}
+          onReply={() => {
+            onReply?.();
+            closeAll();
+          }}
           onCopy={handleCopy}
-          onEdit={own ? () => { setIsEditing(true); closeAll(); } : undefined}
-          onDelete={own ? () => { onDelete?.(); closeAll(); } : undefined}
+          onEdit={
+            own
+              ? () => {
+                  setIsEditing(true);
+                  closeAll();
+                }
+              : undefined
+          }
+          onDelete={
+            own
+              ? () => {
+                  onDelete?.();
+                  closeAll();
+                }
+              : undefined
+          }
         />
 
         {message.replyTo && (
@@ -198,7 +227,7 @@ function MessageBubble({
             own
               ? "rounded-br-sm bg-gradient-to-br from-indigo-600 via-indigo-500 to-violet-600 text-white shadow-indigo-500/20"
               : "rounded-bl-sm border border-[#26314A]/80 bg-[#141D2F] text-white hover:border-indigo-500/20",
-            (showActions || showReactionPicker) && "ring-1 ring-white/10"
+            (showActions || showReactionPicker) && "ring-1 ring-white/10",
           )}
         >
           {!own && sender && (
@@ -277,65 +306,63 @@ function MessageBubble({
           )}
         </motion.div>
 
-        <AnimatePresence>
-          {Object.keys(reactionGroups).length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={cn(
-                "absolute -bottom-3 flex flex-wrap gap-1",
-                own ? "right-2" : "left-2"
-              )}
-            >
-              {Object.entries(reactionGroups).map(([emoji, { count, userIds }]) => {
+        <div
+          className={cn(
+            "mt-2 md:mt-3 flex max-w-full flex-wrap items-center gap-x-2 gap-y-1 text-[10px] md:text-xs text-slate-500",
+            own ? "justify-end" : "justify-start",
+          )}
+        >
+          <AnimatePresence initial={false}>
+            {Object.entries(reactionGroups).map(
+              ([emoji, { count, userIds }]) => {
                 const hasOwn = currentUserId && userIds.includes(currentUserId);
                 return (
                   <motion.button
                     key={emoji}
-                    whileHover={{ scale: 1.08 }}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 4 }}
+                    whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => onReact?.(emoji)}
                     className={cn(
-                      "flex items-center gap-1 rounded-full border px-2 py-0.5 text-sm shadow-md backdrop-blur-sm transition-colors",
+                      "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-sm shadow-sm backdrop-blur-sm transition-colors",
                       hasOwn
                         ? "border-indigo-500/50 bg-indigo-500/20"
-                        : "border-[#26314A] bg-[#101827]/90 hover:bg-[#1a2540]"
+                        : "border-[#26314A] bg-[#101827]/90 hover:bg-[#1a2540]",
                     )}
+                    aria-label={`${emoji} ${count > 99 ? "99+" : count}`}
                   >
                     <span>{emoji}</span>
-                    {count > 1 && (
-                      <span className="text-[10px] text-slate-400">{count}</span>
-                    )}
+                    <span className="text-[10px] text-slate-400">
+                      {count > 99 ? "99+" : count}
+                    </span>
                   </motion.button>
                 );
-              })}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <div
-          className={cn(
-            "mt-2 md:mt-3 flex items-center gap-1.5 text-[10px] md:text-xs text-slate-500",
-            own ? "justify-end" : "justify-start",
-            Object.keys(reactionGroups).length > 0 && "mt-4"
-          )}
-        >
-          <span>{formatMessageTime(message.createdAt)}</span>
-          {own && (
-            <>
-              {message.status === "sending" ? (
-                <Check size={12} className="text-slate-500 animate-pulse" />
-              ) : (
-                <CheckCheck
-                  size={12}
-                  className={cn("transition-colors", isSeen ? "text-sky-400" : "text-slate-500")}
-                />
-              )}
-              <span className={isSeen ? "text-sky-400" : "text-slate-500"}>
-                {statusLabel}
-              </span>
-            </>
-          )}
+              },
+            )}
+          </AnimatePresence>
+          <div className="flex shrink-0 flex-wrap items-center gap-1.5 whitespace-nowrap">
+            <span>{formatMessageTime(message.createdAt)}</span>
+            {own && (
+              <>
+                {message.status === "sending" ? (
+                  <Check size={12} className="text-slate-500 animate-pulse" />
+                ) : (
+                  <CheckCheck
+                    size={12}
+                    className={cn(
+                      "transition-colors",
+                      isSeen ? "text-sky-400" : "text-slate-500",
+                    )}
+                  />
+                )}
+                <span className={isSeen ? "text-sky-400" : "text-slate-500"}>
+                  {statusLabel}
+                </span>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </motion.div>

@@ -1,9 +1,9 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import Image from "next/image";
 import { Phone, PhoneOff, Video } from "lucide-react";
 import { useCall } from "@/hooks";
+import Avatar from "@/components/ui/Avatar";
 
 export default function IncomingCallModal() {
   const { incomingCall, acceptCall, rejectCall } = useCall();
@@ -32,12 +32,12 @@ export default function IncomingCallModal() {
             transition={{ duration: 2, repeat: Infinity }}
             className="mx-auto mb-6"
           >
-            <Image
+            <Avatar
+              name={incomingCall.callerName}
               src={incomingCall.callerAvatar}
-              alt={incomingCall.callerName}
               width={100}
               height={100}
-              className="mx-auto rounded-full h-24 w-24 object-cover ring-4 ring-indigo-500/40"
+              className="mx-auto h-24 w-24 text-2xl ring-4 ring-indigo-500/40"
             />
           </motion.div>
 

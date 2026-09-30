@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -20,7 +19,7 @@ import {
   useUsersStore,
 } from "@/stores";
 import { formatConversationTime } from "@/lib/date";
-import { LoadingState } from "@/components/ui";
+import { Avatar, LoadingState } from "@/components/ui";
 import type { User } from "@/types";
 
 type PanelView = "people" | "requests";
@@ -30,13 +29,10 @@ type PeopleTab = "friends" | "allUsers";
 function PersonAvatar({ user, online }: { user: User; online?: boolean }) {
   return (
     <div className="relative h-11 w-11 shrink-0">
-      <Image
+      <Avatar
+        name={user.name}
         src={user.avatar}
-        alt={user.name}
-        width={44}
-        height={44}
-        unoptimized
-        className="h-11 w-11 rounded-full object-cover"
+        className="h-11 w-11 text-xs"
       />
       {online && (
         <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[#111827] bg-emerald-400" />

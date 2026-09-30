@@ -2,9 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import Image from "next/image";
 import {
-  Phone,
   PhoneOff,
   Video,
   VideoOff,
@@ -13,6 +11,7 @@ import {
   Maximize2,
 } from "lucide-react";
 import { useCall } from "@/hooks";
+import Avatar from "@/components/ui/Avatar";
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -73,12 +72,12 @@ export default function CallOverlay() {
             ) : (
               <div className="flex flex-col items-center gap-4">
                 <div className="relative">
-                  <Image
+                  <Avatar
+                    name={activeCall.callerName}
                     src={activeCall.callerAvatar}
-                    alt={activeCall.callerName}
                     width={120}
                     height={120}
-                    className="rounded-full h-28 w-28 object-cover ring-4 ring-indigo-500/30"
+                    className="h-28 w-28 text-3xl ring-4 ring-indigo-500/30"
                   />
                   {!isConnected && (
                     <motion.div

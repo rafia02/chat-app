@@ -88,6 +88,8 @@ function currentUserId(): string {
   return useAuthStore.getState().user?.id ?? "";
 }
 
+const reactionQueues = new Map<string, Promise<void>>();
+
 function upsertConversation(
   conversations: Conversation[],
   updated: Conversation,
@@ -404,32 +406,90 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   addReaction: async (messageId, emoji, userId) => {
-    const { activeConversationId } = get();
-    if (!activeConversationId) return;
+    const queueKey = `${messageId}:${userId}`;
+    const previousOperation = reactionQueues.get(queueKey) ?? Promise.resolve();
+    const operation = previousOperation.then(async () => {
+      const { activeConversationId } = get();
+      if (!activeConversationId) return;
 
-    set((state) => {
-      const msgs = state.messages[activeConversationId] ?? [];
-      return {
+      const currentMessage = (get().messages[activeConversationId] ?? []).find(
+        (message) => message.id === messageId,
+      );
+      if (!currentMessage) return;
+
+      const originalReactions = currentMessage.reactions;
+      const previousReaction = originalReactions.find(
+        (reaction) => reaction.userId === userId,
+      );
+      const removingReaction = previousReaction?.emoji === emoji;
+      const optimisticReactions = removingReaction
+        ? originalReactions.filter((reaction) => reaction.userId !== userId)
+        : [
+            ...originalReactions.filter(
+              (reaction) => reaction.userId !== userId,
+            ),
+            { emoji, userId },
+          ];
+
+      set((state) => ({
         messages: {
           ...state.messages,
-          [activeConversationId]: msgs.map((m) => {
-            if (m.id !== messageId) return m;
-            const existing = m.reactions.findIndex(
-              (r) => r.emoji === emoji && r.userId === userId,
-            );
-            const reactions =
-              existing >= 0
-                ? m.reactions.filter((_, i) => i !== existing)
-                : [...m.reactions, { emoji, userId }];
-            return { ...m, reactions };
-          }),
+          [activeConversationId]: (
+            state.messages[activeConversationId] ?? []
+          ).map((message) =>
+            message.id === messageId
+              ? { ...message, reactions: optimisticReactions }
+              : message,
+          ),
         },
-      };
+      }));
+
+      let serverMessage = currentMessage;
+      if (previousReaction) {
+        const removal = await chatService.addReaction(
+          messageId,
+          previousReaction.emoji,
+          userId,
+        );
+        if (!removal.success) {
+          set((state) => ({
+            messages: {
+              ...state.messages,
+              [activeConversationId]: (
+                state.messages[activeConversationId] ?? []
+              ).map((message) =>
+                message.id === messageId
+                  ? { ...message, reactions: originalReactions }
+                  : message,
+              ),
+            },
+            error: removal.error.message,
+          }));
+          return;
+        }
+        serverMessage = removal.data;
+        if (removingReaction) {
+          get().handleMessageReaction(serverMessage);
+          return;
+        }
+      }
+
+      const result = await chatService.addReaction(messageId, emoji, userId);
+      if (result.success) {
+        get().handleMessageReaction(result.data);
+      } else {
+        get().handleMessageReaction(serverMessage);
+        set({ error: result.error.message });
+      }
     });
 
-    const result = await chatService.addReaction(messageId, emoji, userId);
-    if (result.success) {
-      get().handleMessageReaction(result.data);
+    reactionQueues.set(queueKey, operation);
+    try {
+      await operation;
+    } finally {
+      if (reactionQueues.get(queueKey) === operation) {
+        reactionQueues.delete(queueKey);
+      }
     }
   },
 
