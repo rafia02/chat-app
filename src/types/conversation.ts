@@ -1,3 +1,5 @@
+import type { User } from "./user";
+
 export type ConversationType = "dm" | "group";
 
 export type ConversationTab = "all" | "unread" | "groups" | "dm";
@@ -13,6 +15,9 @@ export interface Conversation {
   unreadCount: number;
   isOnline?: boolean;
   typingUserIds?: string[];
+  participants?: User[];
+  adminIds?: string[];
+  createdBy?: string | null;
   requestStatus?: "normal" | "pending" | "rejected";
   requestedBy?: string | null;
 }

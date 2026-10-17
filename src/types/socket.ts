@@ -39,11 +39,11 @@ export interface MessageSeenPayload {
 
 export interface CallStartPayload {
   conversationId: string;
-  type: CallType;
+  type: "audio" | "video";
 }
 
 export interface CallSignalPayload {
-  conversationId: string;
+  conversationId?: string;
   callId?: string;
   signal: RTCSessionDescriptionInit | RTCIceCandidateInit;
   targetUserId?: string;
@@ -79,9 +79,33 @@ export interface NotificationPayload {
 }
 
 export interface CallIncomingPayload {
+  callId: string;
+  callerId: string;
   from: string;
-  type: CallType;
+  type: "audio" | "video";
   conversationId?: string;
+  status?: string;
+}
+
+export interface CallBusyPayload {
+  callId?: string;
+  conversationId: string;
+  recipientId: string;
+  reason: "caller-busy" | "busy" | "offline" | string;
+  status?: string;
+}
+
+export interface CallAcknowledgement {
+  success: boolean;
+  data?: { _id?: string; conversationId?: string; status?: string } | null;
+  message?: string;
+}
+
+export interface CallLifecyclePayload {
+  callId?: string;
+  conversationId?: string;
+  userId?: string;
+  status?: string;
 }
 
 export type SocketConnectionStatus =
@@ -99,13 +123,19 @@ export const CLIENT_EVENTS = {
   TYPING_STOP: "typing:stop",
   MESSAGE_SEEN: "message:seen",
   CALL_START: "call:start",
+  CALL_INITIATE: "call:initiate",
   CALL_ACCEPT: "call:accept",
+  CALL_REJECT: "call:reject",
   CALL_END: "call:end",
   CALL_SIGNAL: "call:signal",
 } as const;
 
 // Server -> Client events
 export const SERVER_EVENTS = {
+  GROUP_CREATED: "group:created",
+  GROUP_UPDATED: "group:updated",
+  GROUP_MEMBER_ADDED: "group:member-added",
+  GROUP_MEMBER_REMOVED: "group:member-removed",
   FRIEND_REQUEST_NEW: "friend-request:new",
   FRIEND_REQUEST_ACCEPTED: "friend-request:accepted",
   FRIEND_REQUEST_REJECTED: "friend-request:rejected",
@@ -124,7 +154,9 @@ export const SERVER_EVENTS = {
   USER_OFFLINE: "user:offline",
   CALL_INCOMING: "call:incoming",
   CALL_ACCEPTED: "call:accepted",
+  CALL_REJECTED: "call:rejected",
   CALL_ENDED: "call:ended",
+  CALL_BUSY: "call:busy",
   CALL_SIGNAL: "call:signal",
 } as const;
 

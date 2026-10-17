@@ -9,9 +9,11 @@ import {
   Mic,
   MicOff,
   Maximize2,
+  Volume2,
 } from "lucide-react";
 import { useCall } from "@/hooks";
 import Avatar from "@/components/ui/Avatar";
+import { useState } from "react";
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -20,6 +22,7 @@ function formatDuration(seconds: number): string {
 }
 
 export default function CallOverlay() {
+  const [audioBlocked, setAudioBlocked] = useState(false);
   const {
     activeCall,
     localStream,
@@ -27,6 +30,8 @@ export default function CallOverlay() {
     isMuted,
     isVideoOff,
     callDuration,
+    error,
+    setError,
     endCall,
     toggleMute,
     toggleVideo,
@@ -34,6 +39,7 @@ export default function CallOverlay() {
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
     if (localVideoRef.current && localStream) {
@@ -46,6 +52,60 @@ export default function CallOverlay() {
       remoteVideoRef.current.srcObject = remoteStream;
     }
   }, [remoteStream]);
+
+  useEffect(() => {
+    if (
+      activeCall?.type !== "video" &&
+      remoteAudioRef.current &&
+      remoteStream
+    ) {
+      remoteAudioRef.current.srcObject = remoteStream;
+      void remoteAudioRef.current
+        .play()
+        .then(() => setAudioBlocked(false))
+        .catch(() => setAudioBlocked(true));
+    } else if (remoteAudioRef.current) {
+      remoteAudioRef.current.srcObject = null;
+      setAudioBlocked(false);
+    }
+  }, [remoteStream, activeCall?.type]);
+
+  const enableRemoteAudio = async () => {
+    try {
+      await remoteAudioRef.current?.play();
+      setAudioBlocked(false);
+    } catch {
+      setAudioBlocked(true);
+    }
+  };
+
+  if (!activeCall && !error) return null;
+
+  if (!activeCall && error) {
+    return (
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+        >
+          <div className="w-full max-w-sm rounded-2xl border border-[#29344E] bg-[#111827] p-6 text-center shadow-2xl">
+            <p role="alert" className="text-sm text-slate-200">
+              {error}
+            </p>
+            <button
+              type="button"
+              onClick={() => setError(null)}
+              className="mt-5 rounded-lg bg-[#1B2740] px-4 py-2 text-sm text-white hover:bg-indigo-600"
+            >
+              Dismiss
+            </button>
+          </div>
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
 
   if (!activeCall) return null;
 
@@ -60,6 +120,9 @@ export default function CallOverlay() {
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm"
       >
+        {!isVideo && (
+          <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
+        )}
         <div className="relative h-full w-full max-w-4xl flex flex-col">
           <div className="flex-1 relative flex items-center justify-center overflow-hidden">
             {isVideo && remoteStream ? (
@@ -101,7 +164,7 @@ export default function CallOverlay() {
             )}
           </div>
 
-          {isVideo && localStream && (
+          {isVideo && localStream && !isVideoOff && (
             <div className="absolute top-6 right-6 h-36 w-28 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl">
               <video
                 ref={localVideoRef}
@@ -114,6 +177,13 @@ export default function CallOverlay() {
           )}
 
           <div className="shrink-0 flex items-center justify-center gap-4 pb-10 pt-6">
+            {!isVideo && audioBlocked && (
+              <CallButton
+                icon={<Volume2 size={22} />}
+                label="Enable audio"
+                onClick={() => void enableRemoteAudio()}
+              />
+            )}
             <CallButton
               icon={isMuted ? <MicOff size={22} /> : <Mic size={22} />}
               label={isMuted ? "Unmute" : "Mute"}

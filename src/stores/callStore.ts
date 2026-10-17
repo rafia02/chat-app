@@ -9,6 +9,7 @@ interface CallState {
   isMuted: boolean;
   isVideoOff: boolean;
   callDuration: number;
+  error: string | null;
 
   setIncomingCall: (call: CallSession | null) => void;
   setActiveCall: (call: CallSession | null) => void;
@@ -17,6 +18,7 @@ interface CallState {
   toggleMute: () => void;
   toggleVideo: () => void;
   setCallDuration: (duration: number) => void;
+  setError: (error: string | null) => void;
   resetCall: () => void;
   initiateCall: (params: {
     conversationId: string;
@@ -36,6 +38,7 @@ export const useCallStore = create<CallState>((set, get) => ({
   isMuted: false,
   isVideoOff: false,
   callDuration: 0,
+  error: null,
 
   setIncomingCall: (call) => set({ incomingCall: call }),
 
@@ -59,6 +62,8 @@ export const useCallStore = create<CallState>((set, get) => ({
 
   setCallDuration: (duration) => set({ callDuration: duration }),
 
+  setError: (error) => set({ error }),
+
   resetCall: () => {
     const { localStream, remoteStream } = get();
     localStream?.getTracks().forEach((t) => t.stop());
@@ -71,6 +76,7 @@ export const useCallStore = create<CallState>((set, get) => ({
       isMuted: false,
       isVideoOff: false,
       callDuration: 0,
+      error: null,
     });
   },
 
@@ -86,7 +92,7 @@ export const useCallStore = create<CallState>((set, get) => ({
       callerAvatar: params.callerAvatar,
       startedAt: new Date().toISOString(),
     };
-    set({ activeCall: call });
+    set({ activeCall: call, error: null });
     return call;
   },
 }));

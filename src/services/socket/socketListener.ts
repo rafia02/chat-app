@@ -7,6 +7,8 @@ import type {
   MessageDeliveredPayload,
   MessageSeenUpdatePayload,
   CallIncomingPayload,
+  CallBusyPayload,
+  CallLifecyclePayload,
   CallSignalPayload,
 } from "@/types";
 import { mapMessage } from "@/lib/mappers";
@@ -14,7 +16,10 @@ import { mapMessage } from "@/lib/mappers";
 export interface SocketEventHandlers {
   onMessageNew: (message: Message) => void;
   onMessageUpdated: (message: Message) => void;
-  onMessageDeleted: (payload: { messageId: string; conversationId: string }) => void;
+  onMessageDeleted: (payload: {
+    messageId: string;
+    conversationId: string;
+  }) => void;
   onMessageReaction: (message: Message) => void;
   onMessageDelivered: (payload: MessageDeliveredPayload) => void;
   onMessageSeen: (payload: MessageSeenUpdatePayload) => void;
@@ -22,8 +27,10 @@ export interface SocketEventHandlers {
   onUserOnline: (payload: PresencePayload) => void;
   onUserOffline: (payload: PresencePayload) => void;
   onCallIncoming: (payload: CallIncomingPayload) => void;
-  onCallAccepted: (payload: { userId: string }) => void;
-  onCallEnded: (payload: { userId: string }) => void;
+  onCallAccepted: (payload: CallLifecyclePayload) => void;
+  onCallRejected: (payload: CallLifecyclePayload) => void;
+  onCallEnded: (payload: CallLifecyclePayload) => void;
+  onCallBusy: (payload: CallBusyPayload) => void;
   onCallSignal: (payload: CallSignalPayload) => void;
 }
 
@@ -31,18 +38,20 @@ function asMessage(data: unknown): Message {
   return mapMessage(data);
 }
 
-export function registerSocketListeners(handlers: SocketEventHandlers): () => void {
+export function registerSocketListeners(
+  handlers: SocketEventHandlers,
+): () => void {
   const unsubs: (() => void)[] = [];
 
   unsubs.push(
     socketClient.on(SERVER_EVENTS.MESSAGE_NEW, (data: unknown) => {
       handlers.onMessageNew(asMessage(data));
-    })
+    }),
   );
   unsubs.push(
     socketClient.on(SERVER_EVENTS.MESSAGE_UPDATED, (data: unknown) => {
       handlers.onMessageUpdated(asMessage(data));
-    })
+    }),
   );
   unsubs.push(
     socketClient.on(
@@ -52,13 +61,13 @@ export function registerSocketListeners(handlers: SocketEventHandlers): () => vo
           messageId: String(payload.messageId),
           conversationId: String(payload.conversationId),
         });
-      }
-    )
+      },
+    ),
   );
   unsubs.push(
     socketClient.on(SERVER_EVENTS.MESSAGE_REACTION, (data: unknown) => {
       handlers.onMessageReaction(asMessage(data));
-    })
+    }),
   );
   unsubs.push(
     socketClient.on(
@@ -68,8 +77,8 @@ export function registerSocketListeners(handlers: SocketEventHandlers): () => vo
           messageId: String(payload.messageId),
           conversationId: String(payload.conversationId),
         });
-      }
-    )
+      },
+    ),
   );
   unsubs.push(
     socketClient.on(
@@ -80,33 +89,47 @@ export function registerSocketListeners(handlers: SocketEventHandlers): () => vo
           messageIds: (payload.messageIds ?? []).map(String),
           userId: String(payload.userId),
         });
-      }
-    )
+      },
+    ),
   );
   unsubs.push(
-    socketClient.on(SERVER_EVENTS.TYPING_UPDATE, handlers.onTypingUpdate)
+    socketClient.on(SERVER_EVENTS.TYPING_UPDATE, handlers.onTypingUpdate),
   );
   unsubs.push(
-    socketClient.on(SERVER_EVENTS.USER_ONLINE, (payload: { userId: string }) => {
-      handlers.onUserOnline({ userId: String(payload.userId), status: "online" });
-    })
+    socketClient.on(
+      SERVER_EVENTS.USER_ONLINE,
+      (payload: { userId: string }) => {
+        handlers.onUserOnline({
+          userId: String(payload.userId),
+          status: "online",
+        });
+      },
+    ),
   );
   unsubs.push(
-    socketClient.on(SERVER_EVENTS.USER_OFFLINE, (payload: { userId: string }) => {
-      handlers.onUserOffline({ userId: String(payload.userId), status: "offline" });
-    })
+    socketClient.on(
+      SERVER_EVENTS.USER_OFFLINE,
+      (payload: { userId: string }) => {
+        handlers.onUserOffline({
+          userId: String(payload.userId),
+          status: "offline",
+        });
+      },
+    ),
   );
   unsubs.push(
-    socketClient.on(SERVER_EVENTS.CALL_INCOMING, handlers.onCallIncoming)
+    socketClient.on(SERVER_EVENTS.CALL_INCOMING, handlers.onCallIncoming),
   );
   unsubs.push(
-    socketClient.on(SERVER_EVENTS.CALL_ACCEPTED, handlers.onCallAccepted)
+    socketClient.on(SERVER_EVENTS.CALL_ACCEPTED, handlers.onCallAccepted),
   );
   unsubs.push(
-    socketClient.on(SERVER_EVENTS.CALL_ENDED, handlers.onCallEnded)
+    socketClient.on(SERVER_EVENTS.CALL_REJECTED, handlers.onCallRejected),
   );
+  unsubs.push(socketClient.on(SERVER_EVENTS.CALL_ENDED, handlers.onCallEnded));
+  unsubs.push(socketClient.on(SERVER_EVENTS.CALL_BUSY, handlers.onCallBusy));
   unsubs.push(
-    socketClient.on(SERVER_EVENTS.CALL_SIGNAL, handlers.onCallSignal)
+    socketClient.on(SERVER_EVENTS.CALL_SIGNAL, handlers.onCallSignal),
   );
 
   return () => unsubs.forEach((unsub) => unsub());

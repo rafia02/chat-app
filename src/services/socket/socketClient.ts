@@ -12,6 +12,7 @@ class SocketClient {
   private statusListeners = new Set<StatusListener>();
   private eventListeners = new Map<string, Set<(data: unknown) => void>>();
   private token: string | null = null;
+  private removeManagerListeners: (() => void) | null = null;
 
   getSocket(): Socket | null {
     return this.socket;
@@ -37,7 +38,15 @@ class SocketClient {
   }
 
   connect(token: string): void {
-    if (this.socket?.connected && this.token === token) return;
+    if (
+      this.socket &&
+      this.token === token &&
+      (this.status === "connecting" ||
+        this.status === "connected" ||
+        this.status === "reconnecting")
+    ) {
+      return;
+    }
 
     this.disconnect();
     this.token = token;
@@ -69,24 +78,28 @@ class SocketClient {
     });
 
     this.socket.on("connect_error", () => {
-      this.setStatus("error");
+      this.setStatus(this.socket?.active ? "reconnecting" : "error");
     });
 
-    this.socket.io.on("reconnect", () => {
-      this.setStatus("connected");
-    });
-
-    this.socket.io.on("reconnect_attempt", () => {
+    const manager = this.socket.io;
+    const onReconnectAttempt = () => {
       this.setStatus("reconnecting");
-    });
-
-    this.socket.io.on("reconnect_failed", () => {
+    };
+    const onReconnectFailed = () => {
       this.setStatus("error");
-    });
+    };
+    manager.on("reconnect_attempt", onReconnectAttempt);
+    manager.on("reconnect_failed", onReconnectFailed);
+    this.removeManagerListeners = () => {
+      manager.off("reconnect_attempt", onReconnectAttempt);
+      manager.off("reconnect_failed", onReconnectFailed);
+    };
   }
 
   disconnect(): void {
     if (this.socket) {
+      this.removeManagerListeners?.();
+      this.removeManagerListeners = null;
       this.socket.removeAllListeners();
       this.socket.disconnect();
       this.socket = null;
@@ -101,6 +114,19 @@ class SocketClient {
       return;
     }
     this.socket?.emit(event, data);
+  }
+
+  emitWithAck<TPayload, TResponse>(
+    event: string,
+    data: TPayload,
+    timeout = 10000,
+  ): Promise<TResponse> {
+    if (!this.socket?.connected) {
+      return Promise.reject(new Error("Socket is not connected"));
+    }
+    return this.socket
+      .timeout(timeout)
+      .emitWithAck(event, data) as Promise<TResponse>;
   }
 
   on<T>(event: string, handler: (data: T) => void): () => void {

@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Phone, Video, Search, MoreVertical, ArrowLeft } from "lucide-react";
 import type { Conversation } from "@/types";
 import {
@@ -10,12 +12,15 @@ import {
 } from "@/hooks";
 import { useAuthStore } from "@/stores";
 import Avatar from "@/components/ui/Avatar";
+import GroupDetailsModal from "./GroupDetailsModal";
 
 interface ChatHeaderProps {
   conversation: Conversation;
 }
 
 export default function ChatHeader({ conversation }: ChatHeaderProps) {
+  const router = useRouter();
+  const [showGroupDetails, setShowGroupDetails] = useState(false);
   const { isMobile, openSidebar } = useResponsiveLayout();
   const { startCall } = useCall();
   const currentUserId = useAuthStore((s) => s.user?.id ?? "");
@@ -57,67 +62,95 @@ export default function ChatHeader({ conversation }: ChatHeaderProps) {
   };
 
   return (
-    <header className="flex h-[72px] md:h-[86px] 2xl:h-24 items-center justify-between border-b border-[#222C43] bg-[#111827] px-4 2xl:px-8 backdrop-blur-xl shrink-0">
-      <div className="flex items-center gap-3 md:gap-4 min-w-0">
-        {isMobile && (
-          <button
-            onClick={openSidebar}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#222C43] text-slate-300 transition hover:border-indigo-500 hover:text-white"
-            aria-label="Back to conversations"
-          >
-            <ArrowLeft size={20} />
-          </button>
-        )}
-
-        <div className="relative shrink-0">
-          <Avatar
-            name={conversation.name}
-            src={conversation.avatar}
-            width={56}
-            height={56}
-            className="h-10 w-10 text-xs md:h-12 md:w-12 2xl:h-14 2xl:w-14"
-          />
-          {conversation.isOnline && (
-            <span className="absolute bottom-0.5 right-0.5 h-3 w-3 rounded-full border-2 border-[#0F172A] bg-green-500" />
+    <>
+      <header className="flex h-[72px] md:h-[86px] 2xl:h-24 items-center justify-between border-b border-[#222C43] bg-[#111827] px-4 2xl:px-8 backdrop-blur-xl shrink-0">
+        <div className="flex items-center gap-3 md:gap-4 min-w-0">
+          {isMobile && (
+            <button
+              onClick={openSidebar}
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#222C43] text-slate-300 transition hover:border-indigo-500 hover:text-white"
+              aria-label="Back to conversations"
+            >
+              <ArrowLeft size={20} />
+            </button>
           )}
+
+          <div className="relative shrink-0">
+            <Avatar
+              name={conversation.name}
+              src={conversation.avatar}
+              width={56}
+              height={56}
+              className="h-10 w-10 text-xs md:h-12 md:w-12 2xl:h-14 2xl:w-14"
+            />
+            {conversation.isOnline && (
+              <span className="absolute bottom-0.5 right-0.5 h-3 w-3 rounded-full border-2 border-[#0F172A] bg-green-500" />
+            )}
+          </div>
+
+          <div className="min-w-0">
+            <h2 className="truncate text-base md:text-lg 2xl:text-xl font-semibold text-white">
+              {conversation.name}
+            </h2>
+            <p
+              className={`text-xs 2xl:text-sm truncate transition-colors ${statusColor}`}
+            >
+              {statusText}
+            </p>
+          </div>
         </div>
 
-        <div className="min-w-0">
-          <h2 className="truncate text-base md:text-lg 2xl:text-xl font-semibold text-white">
-            {conversation.name}
-          </h2>
-          <p
-            className={`text-xs 2xl:text-sm truncate transition-colors ${statusColor}`}
-          >
-            {statusText}
-          </p>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2 md:gap-3 shrink-0">
-        <button
-          onClick={handleVoiceCall}
-          className="flex h-9 w-9 md:h-10 md:w-10 2xl:h-12 2xl:w-12 items-center justify-center rounded-xl border border-[#222C43] bg-[#111827] text-slate-300 transition-all duration-300 hover:border-indigo-500 hover:bg-indigo-600 hover:text-white"
-          aria-label="Voice call"
-        >
-          <Phone size={18} />
-        </button>
-        <button
-          onClick={handleVideoCall}
-          className="flex h-9 w-9 md:h-10 md:w-10 2xl:h-12 2xl:w-12 items-center justify-center rounded-xl border border-[#222C43] bg-[#111827] text-slate-300 transition-all duration-300 hover:border-indigo-500 hover:bg-indigo-600 hover:text-white"
-          aria-label="Video call"
-        >
-          <Video size={18} />
-        </button>
-        {[Search, MoreVertical].map((Icon, index) => (
+        <div className="flex items-center gap-2 md:gap-3 shrink-0">
+          {conversation.type === "dm" && (
+            <>
+              <button
+                onClick={handleVoiceCall}
+                className="flex h-9 w-9 md:h-10 md:w-10 2xl:h-12 2xl:w-12 items-center justify-center rounded-xl border border-[#222C43] bg-[#111827] text-slate-300 transition-all duration-300 hover:border-indigo-500 hover:bg-indigo-600 hover:text-white"
+                aria-label="Voice call"
+              >
+                <Phone size={18} />
+              </button>
+              <button
+                onClick={handleVideoCall}
+                className="flex h-9 w-9 md:h-10 md:w-10 2xl:h-12 2xl:w-12 items-center justify-center rounded-xl border border-[#222C43] bg-[#111827] text-slate-300 transition-all duration-300 hover:border-indigo-500 hover:bg-indigo-600 hover:text-white"
+                aria-label="Video call"
+              >
+                <Video size={18} />
+              </button>
+            </>
+          )}
           <button
-            key={index}
+            type="button"
+            aria-label="Search messages"
             className="flex h-9 w-9 md:h-10 md:w-10 2xl:h-12 2xl:w-12 items-center justify-center rounded-xl border border-[#222C43] bg-[#111827] text-slate-300 transition-all duration-300 hover:border-indigo-500 hover:bg-indigo-600 hover:text-white"
           >
-            <Icon size={18} />
+            <Search size={18} />
           </button>
-        ))}
-      </div>
-    </header>
+          <button
+            type="button"
+            onClick={() =>
+              conversation.type === "group" && setShowGroupDetails(true)
+            }
+            aria-label={
+              conversation.type === "group" ? "Group details" : "More options"
+            }
+            className="flex h-9 w-9 md:h-10 md:w-10 2xl:h-12 2xl:w-12 items-center justify-center rounded-xl border border-[#222C43] bg-[#111827] text-slate-300 transition-all duration-300 hover:border-indigo-500 hover:bg-indigo-600 hover:text-white"
+          >
+            <MoreVertical size={18} />
+          </button>
+        </div>
+      </header>
+      {showGroupDetails && conversation.type === "group" && (
+        <GroupDetailsModal
+          conversationId={conversation.id}
+          onClose={() => setShowGroupDetails(false)}
+          onLeft={() => {
+            setShowGroupDetails(false);
+            if (isMobile) openSidebar();
+            router.replace("/chat");
+          }}
+        />
+      )}
+    </>
   );
 }

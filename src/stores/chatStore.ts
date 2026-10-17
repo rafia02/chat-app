@@ -23,6 +23,7 @@ interface ChatState {
   hasAttemptedConversations: boolean;
   isLoadingMessages: boolean;
   isSending: boolean;
+  uploadProgress: number | null;
   error: string | null;
   replyTo: ReplyTo | null;
 
@@ -32,10 +33,23 @@ interface ChatState {
   createGroup: (
     name: string,
     members: string[],
+    avatar?: File,
   ) => Promise<Conversation | null>;
+  refreshConversation: (id: string) => Promise<Conversation | null>;
+  updateGroup: (
+    id: string,
+    updates: { name?: string; avatar?: File },
+  ) => Promise<boolean>;
+  addGroupMembers: (id: string, members: string[]) => Promise<boolean>;
+  removeGroupMember: (id: string, userId: string) => Promise<boolean>;
+  leaveGroup: (id: string) => Promise<boolean>;
   fetchMessages: (conversationId: string, page?: number) => Promise<void>;
   setActiveConversation: (id: string | null) => void;
-  sendMessage: (content: string, file?: File) => Promise<boolean>;
+  sendMessage: (
+    content: string,
+    file?: File,
+    onUploadProgress?: (percentage: number) => void,
+  ) => Promise<boolean>;
   editMessage: (messageId: string, content: string) => Promise<void>;
   deleteMessage: (messageId: string) => Promise<void>;
   markAsRead: (conversationId: string) => Promise<void>;
@@ -107,6 +121,22 @@ function upsertConversation(
   return [updated, ...conversations];
 }
 
+function mergeConversation(
+  existing: Conversation | undefined,
+  updated: Conversation,
+): Conversation {
+  if (!existing) return updated;
+  return {
+    ...existing,
+    ...updated,
+    participants: updated.participants?.length
+      ? updated.participants
+      : existing.participants?.filter((user) =>
+          updated.participantIds.includes(user.id),
+        ),
+  };
+}
+
 function withOnlineFlags(
   conversations: Conversation[],
   onlineUsers: string[],
@@ -134,6 +164,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   hasAttemptedConversations: false,
   isLoadingMessages: false,
   isSending: false,
+  uploadProgress: null,
   error: null,
   replyTo: null,
 
@@ -203,9 +234,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
     return result.data;
   },
 
-  createGroup: async (name, members) => {
+  createGroup: async (name, members, avatar) => {
     set({ isLoadingConversations: true, error: null });
-    const result = await chatService.createGroup(name, members);
+    const result = await chatService.createGroup(name, members, avatar);
     if (!result.success) {
       set({ error: result.error.message, isLoadingConversations: false });
       return null;
@@ -223,6 +254,98 @@ export const useChatStore = create<ChatState>((set, get) => ({
     return result.data;
   },
 
+  refreshConversation: async (id) => {
+    const result = await chatService.getConversation(id);
+    if (!result.success) {
+      set({ error: result.error.message });
+      return null;
+    }
+    set((state) => ({
+      conversations: upsertConversation(
+        state.conversations,
+        mergeConversation(
+          state.conversations.find((conversation) => conversation.id === id),
+          result.data,
+        ),
+      ),
+      error: null,
+    }));
+    return result.data;
+  },
+
+  updateGroup: async (id, updates) => {
+    const result = await chatService.updateGroup(id, updates);
+    if (!result.success) {
+      set({ error: result.error.message });
+      return false;
+    }
+    set((state) => ({
+      conversations: upsertConversation(
+        state.conversations,
+        mergeConversation(
+          state.conversations.find((conversation) => conversation.id === id),
+          result.data,
+        ),
+      ),
+      error: null,
+    }));
+    return true;
+  },
+
+  addGroupMembers: async (id, members) => {
+    const result = await chatService.addGroupMembers(id, members);
+    if (!result.success) {
+      set({ error: result.error.message });
+      return false;
+    }
+    set((state) => ({
+      conversations: upsertConversation(
+        state.conversations,
+        mergeConversation(
+          state.conversations.find((conversation) => conversation.id === id),
+          result.data,
+        ),
+      ),
+      error: null,
+    }));
+    return true;
+  },
+
+  removeGroupMember: async (id, userId) => {
+    const result = await chatService.removeGroupMember(id, userId);
+    if (!result.success) {
+      set({ error: result.error.message });
+      return false;
+    }
+    if (userId === currentUserId()) {
+      socketEmitter.leaveConversation(id);
+      get().removeConversation(id);
+      return true;
+    }
+    set((state) => ({
+      conversations: upsertConversation(
+        state.conversations,
+        mergeConversation(
+          state.conversations.find((conversation) => conversation.id === id),
+          result.data,
+        ),
+      ),
+      error: null,
+    }));
+    return true;
+  },
+
+  leaveGroup: async (id) => {
+    const result = await chatService.leaveGroup(id);
+    if (!result.success) {
+      set({ error: result.error.message });
+      return false;
+    }
+    socketEmitter.leaveConversation(id);
+    get().removeConversation(id);
+    return true;
+  },
+
   fetchMessages: async (conversationId, page = 1) => {
     set({ isLoadingMessages: true, error: null });
     const result = await chatService.getMessages(conversationId, page, 50);
@@ -233,23 +356,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
           [conversationId]:
             page > 1
               ? [...result.data, ...(state.messages[conversationId] ?? [])]
-              : Array.from(
-                  new Map(
-                    [
-                      ...result.data,
-                      ...(state.messages[conversationId] ?? []).filter(
-                        (message) =>
-                          !result.data.some(
-                            (fetched) => fetched.id === message.id,
-                          ),
-                      ),
-                    ].map((message) => [message.id, message]),
-                  ).values(),
-                ).sort(
-                  (first, second) =>
-                    new Date(first.createdAt).getTime() -
-                    new Date(second.createdAt).getTime(),
-                ),
+              : (() => {
+                  const merged = new Map(
+                    result.data.map((message) => [message.id, message]),
+                  );
+                  for (const message of state.messages[conversationId] ?? []) {
+                    const fetched = merged.get(message.id);
+                    merged.set(
+                      message.id,
+                      fetched ? { ...fetched, ...message } : message,
+                    );
+                  }
+                  return Array.from(merged.values()).sort(
+                    (first, second) =>
+                      new Date(first.createdAt).getTime() -
+                      new Date(second.createdAt).getTime(),
+                  );
+                })(),
         },
         isLoadingMessages: false,
       }));
@@ -278,7 +401,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
-  sendMessage: async (content, file) => {
+  sendMessage: async (content, file, onUploadProgress) => {
     const { activeConversationId, replyTo } = get();
     if (!activeConversationId) return false;
     if (!content.trim() && !file) return false;
@@ -317,6 +440,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           : conversation,
       ),
       isSending: true,
+      uploadProgress: file ? 0 : null,
       error: null,
       replyTo: null,
     }));
@@ -326,6 +450,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       content: messageContent,
       replyTo: replyTo ?? undefined,
       file,
+      onUploadProgress,
     });
 
     if (result.success) {
@@ -351,6 +476,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
               : c,
           ),
           isSending: false,
+          uploadProgress: null,
         };
       });
       return true;
@@ -368,6 +494,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         },
         error: result.error.message,
         isSending: false,
+        uploadProgress: null,
       }));
       return false;
     }

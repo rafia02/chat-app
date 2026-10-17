@@ -73,6 +73,7 @@ export function mapConversation(
     : [];
   const participantUsers = extractParticipantUsers(raw);
   const participantIds = participants.map((p) => asId(p));
+  const admins = Array.isArray(data.admins) ? data.admins : [];
 
   const type = data.type === "group" ? "group" : "dm";
   let name = data.name ? String(data.name) : "";
@@ -94,6 +95,9 @@ export function mapConversation(
     avatar: avatarUrl(name, avatar),
     type,
     participantIds,
+    participants: participantUsers,
+    adminIds: admins.map(asId),
+    createdBy: data.createdBy == null ? null : asId(data.createdBy),
     lastMessage: String(data.lastMessage ?? ""),
     lastMessageAt: asIso(
       data.lastMessageAt ?? data.updatedAt ?? data.createdAt,

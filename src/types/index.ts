@@ -46,6 +46,9 @@ export type {
   TypingUpdatePayload,
   NotificationPayload,
   CallIncomingPayload,
+  CallBusyPayload,
+  CallAcknowledgement,
+  CallLifecyclePayload,
   SocketConnectionStatus,
   ConversationUpdatedPayload,
 } from "./socket";

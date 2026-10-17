@@ -4,8 +4,11 @@ import { useConversations } from "@/hooks";
 import { LoadingState, ErrorState } from "@/components/ui";
 import { formatConversationTime } from "@/lib/date";
 import ConversationItem from "./ConversationItem";
+import { useState } from "react";
+import CreateGroupModal from "./CreateGroupModal";
 
 export default function ConversationList() {
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
   const {
     conversations,
     isLoading,
@@ -26,8 +29,10 @@ export default function ConversationList() {
         </h4>
 
         <button
+          type="button"
+          onClick={() => setShowCreateGroup(true)}
           className="flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-xl bg-[#151D31] text-lg text-white transition hover:bg-indigo-600"
-          aria-label="New conversation"
+          aria-label="Create group"
         >
           +
         </button>
@@ -52,6 +57,10 @@ export default function ConversationList() {
           />
         ))
       )}
+      <CreateGroupModal
+        open={showCreateGroup}
+        onClose={() => setShowCreateGroup(false)}
+      />
     </div>
   );
 }

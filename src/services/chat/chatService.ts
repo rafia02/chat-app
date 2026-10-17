@@ -154,6 +154,15 @@ class ChatService implements IChatService {
         response = await http.post<{ success: boolean; data: unknown }>(
           "/messages/send",
           formData,
+          {
+            onUploadProgress: (event) => {
+              if (event.total) {
+                payload.onUploadProgress?.(
+                  Math.min(100, Math.round((event.loaded / event.total) * 100)),
+                );
+              }
+            },
+          },
         );
       } else {
         response = await http.post<{ success: boolean; data: unknown }>(
@@ -256,12 +265,26 @@ class ChatService implements IChatService {
   async createGroup(
     name: string,
     members: string[],
+    avatar?: File,
   ): Promise<ServiceResult<Conversation>> {
     try {
-      const { data } = await http.post<{ success: boolean; data: unknown }>(
-        "/conversations/group",
-        { name, members },
-      );
+      let response;
+      if (avatar) {
+        const formData = new FormData();
+        formData.append("name", name);
+        formData.append("members", JSON.stringify(members));
+        formData.append("avatar", avatar);
+        response = await http.post<{ success: boolean; data: unknown }>(
+          "/conversations/group",
+          formData,
+        );
+      } else {
+        response = await http.post<{ success: boolean; data: unknown }>(
+          "/conversations/group",
+          { name, members },
+        );
+      }
+      const { data } = response;
 
       if (!data.success || !data.data) {
         return {
@@ -271,6 +294,113 @@ class ChatService implements IChatService {
       }
 
       cacheParticipants([data.data]);
+      return {
+        success: true,
+        data: mapConversation(data.data, currentUserId()),
+      };
+    } catch (error) {
+      return { success: false, error: toApiError(error) };
+    }
+  }
+
+  async updateGroup(
+    conversationId: string,
+    updates: { name?: string; avatar?: File },
+  ): Promise<ServiceResult<Conversation>> {
+    try {
+      let response;
+      if (updates.avatar) {
+        const formData = new FormData();
+        if (updates.name !== undefined) formData.append("name", updates.name);
+        formData.append("avatar", updates.avatar);
+        response = await http.patch<{ success: boolean; data: unknown }>(
+          `/conversations/${encodeURIComponent(conversationId)}`,
+          formData,
+        );
+      } else {
+        response = await http.patch<{ success: boolean; data: unknown }>(
+          `/conversations/${encodeURIComponent(conversationId)}`,
+          updates,
+        );
+      }
+      if (!response.data.success || !response.data.data) {
+        return {
+          success: false,
+          error: { message: "Group update failed", status: 400 },
+        };
+      }
+      cacheParticipants([response.data.data]);
+      return {
+        success: true,
+        data: mapConversation(response.data.data, currentUserId()),
+      };
+    } catch (error) {
+      return { success: false, error: toApiError(error) };
+    }
+  }
+
+  async addGroupMembers(
+    conversationId: string,
+    members: string[],
+  ): Promise<ServiceResult<Conversation>> {
+    try {
+      const { data } = await http.post<{ success: boolean; data: unknown }>(
+        `/conversations/${encodeURIComponent(conversationId)}/members`,
+        { members },
+      );
+      if (!data.success || !data.data) {
+        return {
+          success: false,
+          error: { message: "Adding group members failed", status: 400 },
+        };
+      }
+      cacheParticipants([data.data]);
+      return {
+        success: true,
+        data: mapConversation(data.data, currentUserId()),
+      };
+    } catch (error) {
+      return { success: false, error: toApiError(error) };
+    }
+  }
+
+  async removeGroupMember(
+    conversationId: string,
+    userId: string,
+  ): Promise<ServiceResult<Conversation>> {
+    try {
+      const { data } = await http.delete<{ success: boolean; data: unknown }>(
+        `/conversations/${encodeURIComponent(conversationId)}/members/${encodeURIComponent(userId)}`,
+      );
+      if (!data.success || !data.data) {
+        return {
+          success: false,
+          error: { message: "Removing group member failed", status: 400 },
+        };
+      }
+      cacheParticipants([data.data]);
+      return {
+        success: true,
+        data: mapConversation(data.data, currentUserId()),
+      };
+    } catch (error) {
+      return { success: false, error: toApiError(error) };
+    }
+  }
+
+  async leaveGroup(
+    conversationId: string,
+  ): Promise<ServiceResult<Conversation>> {
+    try {
+      const { data } = await http.post<{ success: boolean; data: unknown }>(
+        `/conversations/${encodeURIComponent(conversationId)}/leave`,
+      );
+      if (!data.success || !data.data) {
+        return {
+          success: false,
+          error: { message: "Leaving group failed", status: 400 },
+        };
+      }
       return {
         success: true,
         data: mapConversation(data.data, currentUserId()),

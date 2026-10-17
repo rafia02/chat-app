@@ -16,8 +16,18 @@ import {
   registerSocketListeners,
 } from "@/services/socket";
 import { getAuthSession } from "@/lib/storage";
-import { avatarUrl } from "@/lib/mappers";
-import { handleCallSignal, handleRemoteCallEnded } from "@/hooks/useCall";
+import {
+  avatarUrl,
+  extractParticipantUsers,
+  mapConversation,
+} from "@/lib/mappers";
+import {
+  handleCallBusy,
+  handleCallRejected,
+  handleCallSignal,
+  handleCallSocketUnavailable,
+  handleRemoteCallEnded,
+} from "@/hooks/useCall";
 import { SERVER_EVENTS } from "@/types";
 import { mapFriendRequest } from "@/services/friend/friendService";
 
@@ -46,7 +56,16 @@ export function useSocket() {
   }, [isAuthenticated, user?.id]);
 
   useEffect(() => {
-    if (status !== "connected") return;
+    if (status !== "connected") {
+      if (
+        status === "reconnecting" ||
+        status === "error" ||
+        status === "disconnected"
+      ) {
+        handleCallSocketUnavailable();
+      }
+      return;
+    }
     const conversationId = useChatStore.getState().activeConversationId;
     if (conversationId) socketEmitter.joinConversation(conversationId);
   }, [status]);
@@ -126,19 +145,20 @@ export function useChatSocket() {
           .handleFriendPresence(payload.userId, "offline");
       },
       onCallIncoming: async (payload) => {
-        const caller = await useUsersStore.getState().ensureUser(payload.from);
+        const callerId = payload.callerId || payload.from;
+        const caller = await useUsersStore.getState().ensureUser(callerId);
         const conversations = useChatStore.getState().conversations;
         const conversation =
           conversations.find(
-            (c) => c.type === "dm" && c.participantIds.includes(payload.from),
+            (c) => c.type === "dm" && c.participantIds.includes(callerId),
           ) ?? conversations.find((c) => c.id === payload.conversationId);
 
         const name = caller?.name ?? "Unknown";
         useCallStore.getState().setIncomingCall({
-          id: `call-${Date.now()}`,
-          type: payload.type,
+          id: payload.callId,
+          type: payload.type === "video" ? "video" : "voice",
           status: "ringing",
-          callerId: payload.from,
+          callerId,
           calleeId: useAuthStore.getState().user?.id ?? "",
           conversationId: conversation?.id ?? payload.conversationId ?? "",
           callerName: name,
@@ -158,7 +178,9 @@ export function useChatSocket() {
         }
         useCallStore.getState().setIncomingCall(null);
       },
+      onCallRejected: handleCallRejected,
       onCallEnded: handleRemoteCallEnded,
+      onCallBusy: handleCallBusy,
       onCallSignal: handleCallSignal,
     });
 
@@ -209,6 +231,50 @@ export function useChatSocket() {
             .handleMessageRequestRejected(
               String(payload._id ?? payload.id ?? ""),
             );
+        },
+      ),
+      socketClient.on(SERVER_EVENTS.GROUP_CREATED, (payload: unknown) => {
+        useUsersStore.getState().upsertUsers(extractParticipantUsers(payload));
+        const conversation = mapConversation(
+          payload,
+          useAuthStore.getState().user?.id,
+        );
+        useChatStore.getState().handleConversationUpdated(conversation);
+        if (conversation.id) {
+          void useChatStore.getState().refreshConversation(conversation.id);
+        }
+      }),
+      socketClient.on(
+        SERVER_EVENTS.GROUP_UPDATED,
+        (payload: { _id?: string; id?: string }) => {
+          const id = String(payload._id ?? payload.id ?? "");
+          if (id) void useChatStore.getState().refreshConversation(id);
+        },
+      ),
+      socketClient.on(
+        SERVER_EVENTS.GROUP_MEMBER_ADDED,
+        (payload: { conversation?: { _id?: string; id?: string } }) => {
+          const id = String(
+            payload.conversation?._id ?? payload.conversation?.id ?? "",
+          );
+          if (id) void useChatStore.getState().refreshConversation(id);
+        },
+      ),
+      socketClient.on(
+        SERVER_EVENTS.GROUP_MEMBER_REMOVED,
+        (payload: {
+          conversation?: { _id?: string; id?: string };
+          memberId?: string;
+        }) => {
+          const currentUserId = useAuthStore.getState().user?.id;
+          const id = String(
+            payload.conversation?._id ?? payload.conversation?.id ?? "",
+          );
+          if (id && payload.memberId === currentUserId) {
+            useChatStore.getState().removeConversation(id);
+          } else if (id) {
+            void useChatStore.getState().refreshConversation(id);
+          }
         },
       ),
     ];

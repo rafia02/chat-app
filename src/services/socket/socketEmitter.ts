@@ -4,6 +4,7 @@ import type {
   MessageSeenPayload,
   CallStartPayload,
   CallSignalPayload,
+  CallAcknowledgement,
 } from "@/types";
 
 export const socketEmitter = {
@@ -28,18 +29,41 @@ export const socketEmitter = {
   },
 
   startCall(payload: CallStartPayload) {
-    socketClient.emit(CLIENT_EVENTS.CALL_START, payload);
+    return socketClient.emitWithAck<
+      CallStartPayload,
+      {
+        success: boolean;
+        data: { _id: string; conversationId: string; status: string } | null;
+        message?: string;
+      }
+    >(CLIENT_EVENTS.CALL_INITIATE, payload);
   },
 
-  acceptCall(conversationId: string) {
-    socketClient.emit(CLIENT_EVENTS.CALL_ACCEPT, { conversationId });
+  acceptCall(callId: string) {
+    return socketClient.emitWithAck<{ callId: string }, CallAcknowledgement>(
+      CLIENT_EVENTS.CALL_ACCEPT,
+      { callId },
+    );
   },
 
-  endCall(conversationId: string) {
-    socketClient.emit(CLIENT_EVENTS.CALL_END, { conversationId });
+  rejectCall(callId: string) {
+    return socketClient.emitWithAck<{ callId: string }, CallAcknowledgement>(
+      CLIENT_EVENTS.CALL_REJECT,
+      { callId },
+    );
+  },
+
+  endCall(callId: string) {
+    return socketClient.emitWithAck<{ callId: string }, CallAcknowledgement>(
+      CLIENT_EVENTS.CALL_END,
+      { callId },
+    );
   },
 
   sendCallSignal(payload: CallSignalPayload) {
-    socketClient.emit(CLIENT_EVENTS.CALL_SIGNAL, payload);
+    return socketClient.emitWithAck<CallSignalPayload, CallAcknowledgement>(
+      CLIENT_EVENTS.CALL_SIGNAL,
+      payload,
+    );
   },
 };

@@ -13,6 +13,7 @@ export function useMessages(conversationId: string | null) {
   );
   const isLoadingMessages = useChatStore((s) => s.isLoadingMessages);
   const isSending = useChatStore((s) => s.isSending);
+  const uploadProgress = useChatStore((s) => s.uploadProgress);
   const error = useChatStore((s) => s.error);
   const replyTo = useChatStore((s) => s.replyTo);
   const fetchMessages = useChatStore((s) => s.fetchMessages);
@@ -43,8 +44,12 @@ export function useMessages(conversationId: string | null) {
   }, [messages.length]);
 
   const handleSend = useCallback(
-    async (content: string, file?: File) => {
-      return sendMessage(content, file);
+    async (
+      content: string,
+      file?: File,
+      onUploadProgress?: (percentage: number) => void,
+    ) => {
+      return sendMessage(content, file, onUploadProgress);
     },
     [sendMessage],
   );
@@ -74,6 +79,7 @@ export function useMessages(conversationId: string | null) {
     messages,
     isLoading: isLoadingMessages,
     isSending,
+    uploadProgress,
     error,
     replyTo,
     bottomRef,
