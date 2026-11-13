@@ -7,7 +7,7 @@ import { clearAuthSession, getAuthSession } from "@/lib/storage";
 import type { ApiError } from "@/types";
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
+  process.env.NEXT_PUBLIC_API_URL ?? "https://nova-chat-backend-oqcn.onrender.com/api";
 
 export const http: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
